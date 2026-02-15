@@ -2,23 +2,64 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Live GPS Tracker</title>
+  <title>ESP32 GPS Live Tracking System</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <!-- Leaflet CSS -->
   <link rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
+  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <style>
-    body { margin: 0; padding: 0; }
-    #map { height: 100vh; width: 100%; }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial;
+    }
+
+    #map {
+      height: 100vh;
+      width: 100%;
+    }
+
+    #infoBox {
+      position: absolute;
+      bottom: 15px;
+      left: 15px;
+      background: white;
+      padding: 12px;
+      border-radius: 10px;
+      box-shadow: 0px 0px 10px rgba(0,0,0,0.2);
+      z-index: 1000;
+      font-size: 14px;
+    }
+
+    #status {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: green;
+      color: white;
+      padding: 8px 15px;
+      border-radius: 20px;
+      font-size: 14px;
+      z-index: 1000;
+    }
   </style>
 </head>
 
 <body>
 
 <div id="map"></div>
+
+<div id="infoBox">
+  <b>Device Location</b><br>
+  Waiting for GPS...
+</div>
+
+<div id="status">ONLINE</div>
 
 <script>
 
@@ -28,18 +69,40 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '© OpenStreetMap contributors'
 }).addTo(map);
 
-var marker = L.marker([22.0, 72.0]).addTo(map);
+var marker = L.marker([22.0, 72.0]).addTo(map)
+  .bindPopup("ESP32 GPS Device");
+
+var pathLine = L.polyline([], {color: 'blue'}).addTo(map);
 
 function updateLocation() {
   fetch("https://gps-tracker-q2yf.onrender.com/location")
     .then(response => response.json())
     .then(data => {
+
       if (data.lat && data.lng) {
-        marker.setLatLng([data.lat, data.lng]);
-        map.setView([data.lat, data.lng], 15);
+
+        var newLatLng = new L.LatLng(data.lat, data.lng);
+
+        marker.setLatLng(newLatLng);
+        map.panTo(newLatLng);
+
+        pathLine.addLatLng(newLatLng);
+
+        document.getElementById("infoBox").innerHTML =
+          "<b>Device Location</b><br>" +
+          "Latitude: " + data.lat + "<br>" +
+          "Longitude: " + data.lng;
+
+        document.getElementById("status").innerHTML = "ONLINE";
+        document.getElementById("status").style.background = "green";
       }
+
     })
-    .catch(error => console.log(error));
+    .catch(error => {
+      document.getElementById("status").innerHTML = "OFFLINE";
+      document.getElementById("status").style.background = "red";
+      console.log(error);
+    });
 }
 
 updateLocation();
