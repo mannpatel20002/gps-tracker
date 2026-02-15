@@ -1,65 +1,89 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>ESP32 GPS Live Tracking System</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<title>ESP32 Smart GPS Tracking System</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet"
+href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: #0f172a;
+  overflow: hidden;
+}
 
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: Arial;
-    }
+#map {
+  height: 100vh;
+  width: 100%;
+}
 
-    #map {
-      height: 100vh;
-      width: 100%;
-    }
+.panel {
+  position: absolute;
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(15px);
+  border-radius: 16px;
+  padding: 15px;
+  color: white;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
 
-    #infoBox {
-      position: absolute;
-      bottom: 15px;
-      left: 15px;
-      background: white;
-      padding: 12px;
-      border-radius: 10px;
-      box-shadow: 0px 0px 10px rgba(0,0,0,0.2);
-      z-index: 1000;
-      font-size: 14px;
-    }
+#infoPanel {
+  bottom: 20px;
+  left: 20px;
+  width: 260px;
+}
 
-    #status {
-      position: absolute;
-      top: 15px;
-      right: 15px;
-      background: green;
-      color: white;
-      padding: 8px 15px;
-      border-radius: 20px;
-      font-size: 14px;
-      z-index: 1000;
-    }
-  </style>
+#statusPanel {
+  top: 20px;
+  right: 20px;
+  text-align: center;
+  padding: 10px 20px;
+  border-radius: 30px;
+  font-weight: bold;
+}
+
+.online {
+  background: #22c55e;
+}
+
+.offline {
+  background: #ef4444;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.data {
+  font-size: 14px;
+  margin: 4px 0;
+}
+</style>
 </head>
 
 <body>
 
 <div id="map"></div>
 
-<div id="infoBox">
-  <b>Device Location</b><br>
-  Waiting for GPS...
+<div id="infoPanel" class="panel">
+  <div class="title">🚀 Device Analytics</div>
+  <div class="data">Latitude: <span id="lat">--</span></div>
+  <div class="data">Longitude: <span id="lng">--</span></div>
+  <div class="data">Speed: <span id="speed">0</span> km/h</div>
+  <div class="data">Distance: <span id="distance">0</span> km</div>
+  <div class="data">Last Update: <span id="time">--</span></div>
 </div>
 
-<div id="status">ONLINE</div>
+<div id="statusPanel" class="panel online">
+  🟢 ONLINE
+</div>
 
 <script>
 
@@ -69,39 +93,63 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '© OpenStreetMap contributors'
 }).addTo(map);
 
-var marker = L.marker([22.0, 72.0]).addTo(map)
-  .bindPopup("ESP32 GPS Device");
+var marker = L.marker([22.0, 72.0]).addTo(map);
+var pathLine = L.polyline([], {color: '#38bdf8', weight: 4}).addTo(map);
 
-var pathLine = L.polyline([], {color: 'blue'}).addTo(map);
+let lastLat = null;
+let lastLng = null;
+let totalDistance = 0;
+
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2-lat1) * Math.PI/180;
+  const dLon = (lon2-lon1) * Math.PI/180;
+  const a =
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
 
 function updateLocation() {
   fetch("https://gps-tracker-q2yf.onrender.com/location")
-    .then(response => response.json())
+    .then(res => res.json())
     .then(data => {
 
-      if (data.lat && data.lng) {
+      if(data.lat && data.lng){
 
         var newLatLng = new L.LatLng(data.lat, data.lng);
-
         marker.setLatLng(newLatLng);
         map.panTo(newLatLng);
-
         pathLine.addLatLng(newLatLng);
 
-        document.getElementById("infoBox").innerHTML =
-          "<b>Device Location</b><br>" +
-          "Latitude: " + data.lat + "<br>" +
-          "Longitude: " + data.lng;
+        document.getElementById("lat").innerHTML = data.lat.toFixed(6);
+        document.getElementById("lng").innerHTML = data.lng.toFixed(6);
 
-        document.getElementById("status").innerHTML = "ONLINE";
-        document.getElementById("status").style.background = "green";
+        let speed = 0;
+
+        if(lastLat !== null){
+          let dist = calculateDistance(lastLat, lastLng, data.lat, data.lng);
+          totalDistance += dist;
+          speed = (dist * 3600) / 5; // approx km/h (5 sec interval)
+        }
+
+        document.getElementById("speed").innerHTML = speed.toFixed(2);
+        document.getElementById("distance").innerHTML = totalDistance.toFixed(3);
+        document.getElementById("time").innerHTML = new Date().toLocaleTimeString();
+
+        lastLat = data.lat;
+        lastLng = data.lng;
+
+        document.getElementById("statusPanel").className = "panel online";
+        document.getElementById("statusPanel").innerHTML = "🟢 ONLINE";
       }
 
     })
-    .catch(error => {
-      document.getElementById("status").innerHTML = "OFFLINE";
-      document.getElementById("status").style.background = "red";
-      console.log(error);
+    .catch(err => {
+      document.getElementById("statusPanel").className = "panel offline";
+      document.getElementById("statusPanel").innerHTML = "🔴 OFFLINE";
     });
 }
 
