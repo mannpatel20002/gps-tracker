@@ -1,23 +1,38 @@
-const express = require('express');
-const cors = require('cors');
+const express = require("express");
+const cors = require("cors");
+
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-let location = { lat: 0, lng: 0 };
+let currentLocation = {
+  lat: 22.0,
+  lng: 72.0
+};
 
-app.get('/', (req, res) => {
-  res.send("GPS Tracker Backend Running ✅");
+// POST route (ESP32 sends here)
+app.post("/location", (req, res) => {
+  const { lat, lng } = req.body;
+
+  if (lat && lng) {
+    currentLocation = { lat, lng };
+    console.log("Updated Location:", currentLocation);
+    res.status(200).json({ message: "Location updated" });
+  } else {
+    res.status(400).json({ error: "Invalid data" });
+  }
 });
 
-app.post('/update', (req, res) => {
-  location = req.body;
-  res.json({ status: "Location Updated", data: location });
+// GET route (Map reads from here)
+app.get("/location", (req, res) => {
+  res.json(currentLocation);
 });
 
-app.get('/location', (req, res) => {
-  res.json(location);
+// Root route
+app.get("/", (req, res) => {
+  res.send("GPS Tracker Backend Running");
 });
 
-app.listen(process.env.PORT || 3000);
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("Server running on port", PORT));
