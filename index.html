@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>ESP32 Smart GPS Tracking System</title>
+<title>Smart GPS Tracking Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet"
@@ -13,8 +13,7 @@ href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 body {
   margin: 0;
   font-family: 'Segoe UI', sans-serif;
-  background: #0f172a;
-  overflow: hidden;
+  background: #f1f5f9;
 }
 
 #map {
@@ -22,48 +21,67 @@ body {
   width: 100%;
 }
 
-.panel {
+.header {
   position: absolute;
-  background: rgba(255,255,255,0.1);
-  backdrop-filter: blur(15px);
-  border-radius: 16px;
-  padding: 15px;
-  color: white;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  padding: 12px 25px;
+  border-radius: 30px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+  font-weight: 600;
+  font-size: 18px;
+  z-index: 1000;
 }
 
-#infoPanel {
+.card {
+  position: absolute;
+  background: white;
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+  z-index: 1000;
+  transition: 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+}
+
+#infoCard {
   bottom: 20px;
   left: 20px;
-  width: 260px;
+  width: 280px;
 }
 
-#statusPanel {
+#statusCard {
   top: 20px;
   right: 20px;
-  text-align: center;
   padding: 10px 20px;
-  border-radius: 30px;
-  font-weight: bold;
+  border-radius: 50px;
+  font-weight: 600;
 }
 
 .online {
   background: #22c55e;
+  color: white;
 }
 
 .offline {
   background: #ef4444;
+  color: white;
 }
 
-.title {
-  font-size: 18px;
-  font-weight: bold;
+.label {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.value {
+  font-size: 15px;
+  font-weight: 600;
   margin-bottom: 8px;
-}
-
-.data {
-  font-size: 14px;
-  margin: 4px 0;
 }
 </style>
 </head>
@@ -72,16 +90,28 @@ body {
 
 <div id="map"></div>
 
-<div id="infoPanel" class="panel">
-  <div class="title">🚀 Device Analytics</div>
-  <div class="data">Latitude: <span id="lat">--</span></div>
-  <div class="data">Longitude: <span id="lng">--</span></div>
-  <div class="data">Speed: <span id="speed">0</span> km/h</div>
-  <div class="data">Distance: <span id="distance">0</span> km</div>
-  <div class="data">Last Update: <span id="time">--</span></div>
+<div class="header">
+  🚀 ESP32 Live GPS Tracking System
 </div>
 
-<div id="statusPanel" class="panel online">
+<div id="infoCard" class="card">
+  <div class="label">Latitude</div>
+  <div class="value" id="lat">--</div>
+
+  <div class="label">Longitude</div>
+  <div class="value" id="lng">--</div>
+
+  <div class="label">Speed (km/h)</div>
+  <div class="value" id="speed">0</div>
+
+  <div class="label">Total Distance (km)</div>
+  <div class="value" id="distance">0</div>
+
+  <div class="label">Last Update</div>
+  <div class="value" id="time">--</div>
+</div>
+
+<div id="statusCard" class="card online">
   🟢 ONLINE
 </div>
 
@@ -94,7 +124,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 var marker = L.marker([22.0, 72.0]).addTo(map);
-var pathLine = L.polyline([], {color: '#38bdf8', weight: 4}).addTo(map);
+var pathLine = L.polyline([], {color: '#2563eb', weight: 4}).addTo(map);
 
 let lastLat = null;
 let lastLng = null;
@@ -132,7 +162,7 @@ function updateLocation() {
         if(lastLat !== null){
           let dist = calculateDistance(lastLat, lastLng, data.lat, data.lng);
           totalDistance += dist;
-          speed = (dist * 3600) / 5; // approx km/h (5 sec interval)
+          speed = (dist * 3600) / 5;
         }
 
         document.getElementById("speed").innerHTML = speed.toFixed(2);
@@ -142,14 +172,14 @@ function updateLocation() {
         lastLat = data.lat;
         lastLng = data.lng;
 
-        document.getElementById("statusPanel").className = "panel online";
-        document.getElementById("statusPanel").innerHTML = "🟢 ONLINE";
+        document.getElementById("statusCard").className = "card online";
+        document.getElementById("statusCard").innerHTML = "🟢 ONLINE";
       }
 
     })
     .catch(err => {
-      document.getElementById("statusPanel").className = "panel offline";
-      document.getElementById("statusPanel").innerHTML = "🔴 OFFLINE";
+      document.getElementById("statusCard").className = "card offline";
+      document.getElementById("statusCard").innerHTML = "🔴 OFFLINE";
     });
 }
 
