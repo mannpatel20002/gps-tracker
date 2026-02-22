@@ -1,17 +1,62 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Live GPS Tracker</title>
+    <title>Ridham Live GPS Tracker</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
     <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f172a;
+            color: white;
+            overflow: hidden;
+        }
+
         #map {
             height: 100vh;
             width: 100%;
+        }
+
+        .panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.6);
+            z-index: 1000;
+            width: 260px;
+            backdrop-filter: blur(10px);
+        }
+
+        .panel h2 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .label {
+            font-size: 13px;
+            opacity: 0.7;
+        }
+
+        .value {
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .speed {
+            color: #22c55e;
+        }
+
+        .leaflet-control-attribution {
+            display: none;
         }
     </style>
 </head>
@@ -20,7 +65,15 @@
 
 <div id="map"></div>
 
-<!-- Leaflet JS -->
+<div class="panel">
+    <h2>Live GPS Tracker</h2>
+    <div class="label">Speed</div>
+    <div class="value speed" id="speed">0 km/h</div>
+
+    <div class="label">Last Update</div>
+    <div class="value" id="time">--</div>
+</div>
+
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
@@ -28,13 +81,14 @@
 var channelID = "3272807";
 var readAPI = "SAVKWFOOGHDSZ4CG";
 
-var map = L.map('map').setView([20, 78], 5);
+var map = L.map('map', { zoomControl: true }).setView([20, 78], 5);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
 }).addTo(map);
 
 var marker;
+var polyline = L.polyline([], { color: '#22c55e', weight: 4 }).addTo(map);
 
 function updateLocation() {
 
@@ -53,11 +107,34 @@ function updateLocation() {
                 map.removeLayer(marker);
             }
 
-            marker = L.marker([lat, lon]).addTo(map)
-                     .bindPopup("Live Location")
-                     .openPopup();
+            marker = L.circleMarker([lat, lon], {
+                radius: 10,
+                fillColor: "#22c55e",
+                color: "#ffffff",
+                weight: 3,
+                opacity: 1,
+                fillOpacity: 0.9
+            }).addTo(map);
+
+            polyline.addLatLng([lat, lon]);
 
             map.setView([lat, lon], 18);
+
+            document.getElementById("time").innerHTML =
+                new Date(data.created_at).toLocaleString();
+
+            if (polyline.getLatLngs().length > 1) {
+
+                var points = polyline.getLatLngs();
+                var last = points[points.length - 1];
+                var prev = points[points.length - 2];
+
+                var distance = map.distance(prev, last);
+                var speed = (distance / 15) * 3.6;
+
+                document.getElementById("speed").innerHTML =
+                    speed.toFixed(2) + " km/h";
+            }
         }
     });
 }
