@@ -1,92 +1,85 @@
+```html
 <!DOCTYPE html>
 <html>
 <head>
-<title>Ridham Professional GPS Tracker</title>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart GPS Tracker</title>
+
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
+
 body{
-    margin:0;
-    font-family:'Segoe UI',sans-serif;
-    background:#0f172a;
-    color:white;
+margin:0;
+font-family:Segoe UI;
+background:#0f172a;
+color:white;
 }
 
 #map{
-    height:100vh;
-    width:100%;
-}
-
-/* Move zoom buttons down */
-.leaflet-top.leaflet-left{
-    top:100px;
-}
-
-/* Remove leaflet attribution */
-.leaflet-control-attribution{
-    display:none;
+height:100vh;
 }
 
 .dashboard{
-    position:absolute;
-    top:20px;
-    right:20px;
-    width:300px;
-    background:rgba(15,23,42,0.95);
-    backdrop-filter:blur(15px);
-    padding:20px;
-    border-radius:18px;
-    box-shadow:0 0 40px rgba(0,0,0,0.6);
-    z-index:1000;
+position:absolute;
+top:20px;
+right:20px;
+width:300px;
+background:rgba(20,20,30,0.9);
+padding:20px;
+border-radius:16px;
+box-shadow:0 0 25px rgba(0,0,0,0.5);
+z-index:999;
 }
 
 .title{
-    font-size:18px;
-    font-weight:600;
-    margin-bottom:15px;
+font-size:18px;
+margin-bottom:15px;
+font-weight:bold;
 }
 
 .stat{
-    margin-bottom:12px;
+margin-bottom:10px;
 }
 
 .label{
-    font-size:12px;
-    opacity:0.6;
+font-size:12px;
+opacity:0.7;
 }
 
 .value{
-    font-size:20px;
-    font-weight:bold;
+font-size:18px;
 }
 
-.green{ color:#22c55e; }
-.blue{ color:#38bdf8; }
-.orange{ color:#f59e0b; }
-
-.status{
-    display:flex;
-    align-items:center;
-    margin-top:10px;
+button{
+width:100%;
+padding:10px;
+margin-top:10px;
+border:none;
+border-radius:8px;
+background:#22c55e;
+color:white;
+font-weight:bold;
+cursor:pointer;
 }
 
-.dot{
-    height:10px;
-    width:10px;
-    background:#22c55e;
-    border-radius:50%;
-    margin-right:8px;
-    animation:pulse 1.5s infinite;
+button.off{
+background:#ef4444;
 }
 
-@keyframes pulse{
-    0%{box-shadow:0 0 0 0 rgba(34,197,94,0.7);}
-    70%{box-shadow:0 0 0 10px rgba(34,197,94,0);}
-    100%{box-shadow:0 0 0 0 rgba(34,197,94,0);}
+.alertBox{
+margin-top:10px;
+padding:10px;
+border-radius:8px;
+background:#1e293b;
 }
+
+.leaflet-control-attribution{
+display:none;
+}
+
 </style>
 </head>
 
@@ -95,78 +88,79 @@ body{
 <div id="map"></div>
 
 <div class="dashboard">
-    <div class="title">Live GPS Dashboard</div>
 
-    <div class="stat">
-        <div class="label">Speed</div>
-        <div class="value green" id="speed">0 km/h</div>
-    </div>
+<div class="title">GPS Tracker Dashboard</div>
 
-    <div class="stat">
-        <div class="label">Total Distance</div>
-        <div class="value blue" id="distance">0 m</div>
-    </div>
+<div class="stat">
+<div class="label">Latitude</div>
+<div class="value" id="lat">--</div>
+</div>
 
-    <div class="stat">
-        <div class="label">Latitude</div>
-        <div class="value orange" id="lat">--</div>
-    </div>
+<div class="stat">
+<div class="label">Longitude</div>
+<div class="value" id="lon">--</div>
+</div>
 
-    <div class="stat">
-        <div class="label">Longitude</div>
-        <div class="value orange" id="lon">--</div>
-    </div>
+<div class="stat">
+<div class="label">Address</div>
+<div class="value" id="address">Loading...</div>
+</div>
 
-    <div class="stat">
-        <div class="label">Last Update</div>
-        <div class="value" id="time">--</div>
-    </div>
+<div class="stat">
+<div class="label">Speed</div>
+<div class="value" id="speed">0 km/h</div>
+</div>
 
-    <div class="status">
-        <div class="dot"></div>
-        <div>Device Online</div>
-    </div>
+<button id="alertToggle">Enable Alerts</button>
+
+<div class="alertBox">
+Alert Status: <span id="alertStatus">OFF</span>
+</div>
+
 </div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
 
-var channelID="3272807";
-var readAPI="SAVKWFOOGHDSZ4CG";
+var channelID="YOUR_CHANNEL_ID";
+var readAPI="YOUR_READ_API_KEY";
+
+var alertEnabled=false;
 
 var map=L.map('map').setView([20,78],5);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    maxZoom:19
+maxZoom:19
 }).addTo(map);
 
 var marker;
-var polyline=L.polyline([],{color:'#22c55e',weight:4}).addTo(map);
 
-var totalDistance=0;
+function reverseGeocode(lat,lon){
+
+fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
+.then(res=>res.json())
+.then(data=>{
+document.getElementById("address").innerHTML=data.display_name;
+});
+
+}
 
 function updateLocation(){
 
-fetch("https://api.thingspeak.com/channels/"+channelID+
-"/feeds/last.json?api_key="+readAPI)
+fetch(`https://api.thingspeak.com/channels/${channelID}/feeds/last.json?api_key=${readAPI}`)
 
-.then(response=>response.json())
+.then(res=>res.json())
 .then(data=>{
 
 var lat=parseFloat(data.field1);
 var lon=parseFloat(data.field2);
+var alert=parseInt(data.field3);
 
-if(!isNaN(lat)&&!isNaN(lon)){
+document.getElementById("lat").innerHTML=lat.toFixed(6);
+document.getElementById("lon").innerHTML=lon.toFixed(6);
 
-if(marker){
-var prev=marker.getLatLng();
-var newLatLng=L.latLng(lat,lon);
-var dist=map.distance(prev,newLatLng);
-totalDistance+=dist;
-document.getElementById("distance").innerHTML=
-totalDistance.toFixed(2)+" m";
-}
+reverseGeocode(lat,lon);
 
 if(marker){
 map.removeLayer(marker);
@@ -174,34 +168,46 @@ map.removeLayer(marker);
 
 marker=L.circleMarker([lat,lon],{
 radius:10,
+color:"#fff",
 fillColor:"#22c55e",
-color:"#ffffff",
-weight:3,
 fillOpacity:0.9
 }).addTo(map);
 
-polyline.addLatLng([lat,lon]);
+map.setView([lat,lon],17);
 
-map.setView([lat,lon],18);
+if(alertEnabled){
 
-document.getElementById("lat").innerHTML=lat.toFixed(6);
-document.getElementById("lon").innerHTML=lon.toFixed(6);
-
-document.getElementById("time").innerHTML=
-new Date(data.created_at).toLocaleString();
-
-if(polyline.getLatLngs().length>1){
-var pts=polyline.getLatLngs();
-var last=pts[pts.length-1];
-var prev=pts[pts.length-2];
-var d=map.distance(prev,last);
-var speed=(d/15)*3.6;
-document.getElementById("speed").innerHTML=
-speed.toFixed(2)+" km/h";
+if(alert==1){
+document.getElementById("alertStatus").innerHTML="Motion Detected";
+document.getElementById("alertStatus").style.color="yellow";
 }
+
+if(alert==2){
+document.getElementById("alertStatus").innerHTML="Accident Detected";
+document.getElementById("alertStatus").style.color="red";
 }
+
+}
+
 });
+
 }
+
+document.getElementById("alertToggle").onclick=function(){
+
+alertEnabled=!alertEnabled;
+
+if(alertEnabled){
+this.innerHTML="Disable Alerts";
+this.classList.add("off");
+document.getElementById("alertStatus").innerHTML="Monitoring";
+}else{
+this.innerHTML="Enable Alerts";
+this.classList.remove("off");
+document.getElementById("alertStatus").innerHTML="OFF";
+}
+
+};
 
 updateLocation();
 setInterval(updateLocation,15000);
@@ -210,3 +216,4 @@ setInterval(updateLocation,15000);
 
 </body>
 </html>
+```
