@@ -2,10 +2,11 @@
 <!DOCTYPE html>
 <html>
 <head>
+
 <title>Smart GPS Tracker</title>
 
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
@@ -23,57 +24,73 @@ height:100vh;
 }
 
 .dashboard{
+
 position:absolute;
 top:20px;
 right:20px;
-width:300px;
-background:rgba(20,20,30,0.9);
+width:320px;
+background:rgba(20,20,30,0.92);
 padding:20px;
-border-radius:16px;
+border-radius:14px;
 box-shadow:0 0 25px rgba(0,0,0,0.5);
 z-index:999;
+
 }
 
 .title{
-font-size:18px;
+
+font-size:20px;
 margin-bottom:15px;
 font-weight:bold;
+
 }
 
 .stat{
-margin-bottom:10px;
+
+margin-bottom:12px;
+
 }
 
 .label{
+
 font-size:12px;
 opacity:0.7;
+
 }
 
 .value{
+
 font-size:18px;
+
 }
 
 button{
+
 width:100%;
 padding:10px;
-margin-top:10px;
+margin-top:12px;
 border:none;
 border-radius:8px;
 background:#22c55e;
 color:white;
 font-weight:bold;
 cursor:pointer;
+
 }
 
 button.off{
+
 background:#ef4444;
+
 }
 
 .alertBox{
-margin-top:10px;
+
+margin-top:12px;
 padding:10px;
 border-radius:8px;
 background:#1e293b;
+
 }
 
 .leaflet-control-attribution{
@@ -81,6 +98,7 @@ display:none;
 }
 
 </style>
+
 </head>
 
 <body>
@@ -111,10 +129,15 @@ display:none;
 <div class="value" id="speed">0 km/h</div>
 </div>
 
+<div class="stat">
+<div class="label">Last Updated</div>
+<div class="value" id="lastUpdate">--</div>
+</div>
+
 <button id="alertToggle">Enable Alerts</button>
 
 <div class="alertBox">
-Alert Status: <span id="alertStatus">OFF</span>
+Alert Status : <span id="alertStatus">OFF</span>
 </div>
 
 </div>
@@ -139,9 +162,13 @@ var marker;
 function reverseGeocode(lat,lon){
 
 fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
+
 .then(res=>res.json())
+
 .then(data=>{
+
 document.getElementById("address").innerHTML=data.display_name;
+
 });
 
 }
@@ -151,6 +178,7 @@ function updateLocation(){
 fetch(`https://api.thingspeak.com/channels/${channelID}/feeds/last.json?api_key=${readAPI}`)
 
 .then(res=>res.json())
+
 .then(data=>{
 
 var lat=parseFloat(data.field1);
@@ -162,15 +190,23 @@ document.getElementById("lon").innerHTML=lon.toFixed(6);
 
 reverseGeocode(lat,lon);
 
+var time=data.created_at;
+var date=new Date(time);
+var formatted=date.toLocaleString();
+
+document.getElementById("lastUpdate").innerHTML=formatted;
+
 if(marker){
 map.removeLayer(marker);
 }
 
 marker=L.circleMarker([lat,lon],{
+
 radius:10,
 color:"#fff",
 fillColor:"#22c55e",
 fillOpacity:0.9
+
 }).addTo(map);
 
 map.setView([lat,lon],17);
@@ -178,13 +214,17 @@ map.setView([lat,lon],17);
 if(alertEnabled){
 
 if(alert==1){
+
 document.getElementById("alertStatus").innerHTML="Motion Detected";
 document.getElementById("alertStatus").style.color="yellow";
+
 }
 
 if(alert==2){
+
 document.getElementById("alertStatus").innerHTML="Accident Detected";
 document.getElementById("alertStatus").style.color="red";
+
 }
 
 }
@@ -198,18 +238,23 @@ document.getElementById("alertToggle").onclick=function(){
 alertEnabled=!alertEnabled;
 
 if(alertEnabled){
+
 this.innerHTML="Disable Alerts";
 this.classList.add("off");
 document.getElementById("alertStatus").innerHTML="Monitoring";
+
 }else{
+
 this.innerHTML="Enable Alerts";
 this.classList.remove("off");
 document.getElementById("alertStatus").innerHTML="OFF";
+
 }
 
 };
 
 updateLocation();
+
 setInterval(updateLocation,15000);
 
 </script>
@@ -217,4 +262,3 @@ setInterval(updateLocation,15000);
 </body>
 </html>
 ```
-
