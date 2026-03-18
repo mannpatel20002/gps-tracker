@@ -2,90 +2,18 @@
 <!DOCTYPE html>
 <html>
 <head>
-
-<title>Smart GPS Tracker</title>
-
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Tracker</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
-
-body{
-margin:0;
-font-family:Segoe UI;
-background:#0f172a;
-color:white;
-}
-
-#map{
-height:100vh;
-z-index:1;
-}
-
+body{margin:0;background:#0f172a;color:white;font-family:sans-serif;}
+#map{height:100vh;}
 .panel{
-position:fixed;
-top:20px;
-right:20px;
-width:320px;
-background:#111827;
-padding:15px;
-border-radius:12px;
-z-index:9999;
+position:fixed;top:20px;right:20px;width:300px;
+background:#111827;padding:15px;border-radius:12px;z-index:9999;
 }
-
-.stat{
-margin-bottom:6px;
-font-size:14px;
-}
-
-.toggle{
-display:flex;
-justify-content:space-between;
-margin-top:10px;
-padding:8px;
-background:#1f2937;
-border-radius:8px;
-}
-
-.switch{
-width:50px;height:25px;
-background:#374151;
-border-radius:20px;
-position:relative;
-cursor:pointer;
-}
-
-.switch::after{
-content:'';
-width:20px;height:20px;
-background:white;
-position:absolute;
-top:2.5px;
-left:3px;
-border-radius:50%;
-transition:0.3s;
-}
-
-.switch.active{background:#22c55e;}
-.switch.active::after{left:26px;}
-
-button{
-width:100%;
-margin-top:12px;
-padding:10px;
-border:none;
-border-radius:8px;
-background:#ef4444;
-color:white;
-}
-
-.leaflet-control-attribution{
-display:none;
-}
-
 </style>
-
 </head>
 
 <body>
@@ -93,32 +21,14 @@ display:none;
 <div id="map"></div>
 
 <div class="panel">
+<h3>Tracker</h3>
+<p>Lat: <span id="lat"></span></p>
+<p>Lon: <span id="lon"></span></p>
+<p>Speed: <span id="speed"></span></p>
+<p>Last: <span id="time"></span></p>
+<p>Addr: <span id="addr">--</span></p>
 
-<h3>🚗 Smart Tracker</h3>
-
-<div class="stat">📍 Lat: <span id="lat">--</span></div>
-<div class="stat">📍 Lon: <span id="lon">--</span></div>
-<div class="stat">🏃 Speed: <span id="speed">0</span> km/h</div>
-<div class="stat">⏱ Last Update: <span id="time">--</span></div>
-<div class="stat">🏠 Address: <span id="address">Fetching...</span></div>
-
-<div class="toggle">
-<span>Safety</span>
-<div class="switch" onclick="toggle(this,5)"></div>
-</div>
-
-<div class="toggle">
-<span>SMS</span>
-<div class="switch" onclick="toggle(this,6)"></div>
-</div>
-
-<div class="toggle">
-<span>Call</span>
-<div class="switch" onclick="toggle(this,7)"></div>
-</div>
-
-<button onclick="buzz()">🔔 Find Device</button>
-
+<button onclick="buzz()">Find Device</button>
 </div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -130,11 +40,10 @@ var read="SAVKWFOOGHDSZ4CG";
 var write="C6NTK8JIB7MD43EC";
 
 var map=L.map('map').setView([20,78],5);
-map.getContainer().style.zIndex="1";
-
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 var marker;
+var lastLat=0,lastLon=0;
 
 function update(){
 
@@ -145,58 +54,39 @@ fetch(`https://api.thingspeak.com/channels/${ch}/feeds/last.json?api_key=${read}
 let lat=parseFloat(d.field1);
 let lon=parseFloat(d.field2);
 
-document.getElementById("lat").innerHTML=lat.toFixed(6);
-document.getElementById("lon").innerHTML=lon.toFixed(6);
-document.getElementById("speed").innerHTML=d.field4 || 0;
-
-// ✅ Last Updated Time
-document.getElementById("time").innerHTML =
-new Date(d.created_at).toLocaleString();
-
-// 📍 Address Fetch
-getAddress(lat, lon);
+document.getElementById("lat").innerHTML=lat;
+document.getElementById("lon").innerHTML=lon;
+document.getElementById("speed").innerHTML=d.field4||0;
+document.getElementById("time").innerHTML=new Date(d.created_at).toLocaleString();
 
 if(marker) map.removeLayer(marker);
-
 marker=L.marker([lat,lon]).addTo(map);
-
 map.setView([lat,lon],17);
 
+// address only if changed
+if(lat!=lastLat || lon!=lastLon){
+getAddr(lat,lon);
+lastLat=lat;
+lastLon=lon;
+}
+
 });
 
 }
 
-function getAddress(lat,lon){
-
+function getAddr(lat,lon){
 fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
-.then(res=>res.json())
-.then(data=>{
-document.getElementById("address").innerHTML =
-data.display_name || "Not available";
-})
-.catch(()=>{
-document.getElementById("address").innerHTML = "Error loading address";
+.then(r=>r.json())
+.then(d=>{
+document.getElementById("addr").innerHTML=d.display_name;
 });
-
-}
-
-function toggle(el,f){
-
-el.classList.toggle("active");
-
-let val=el.classList.contains("active")?1:0;
-
-fetch(`https://api.thingspeak.com/update?api_key=${write}&field${f}=${val}`);
-
 }
 
 function buzz(){
-
 fetch(`https://api.thingspeak.com/update?api_key=${write}&field8=1`);
-
 }
 
-setInterval(update,15000);
+setInterval(update,10000);
 update();
 
 </script>
