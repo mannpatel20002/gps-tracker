@@ -3,101 +3,38 @@
 <html>
 <head>
 
-<title>Smart GPS Tracker</title>
-
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
+<title>Smart Tracker</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
-
-body{
-margin:0;
-font-family:Segoe UI;
-background:#0f172a;
-color:white;
-}
-
-#map{
-height:100vh;
-}
+body{margin:0;background:#0f172a;color:white;font-family:sans-serif;}
+#map{height:100vh;}
 
 .panel{
-position:absolute;
-top:20px;
-right:20px;
-width:320px;
-background:#111827;
-padding:18px;
-border-radius:14px;
-z-index:999;
-box-shadow:0 0 20px rgba(0,0,0,0.5);
+position:absolute;right:20px;top:20px;width:300px;
+background:#111827;padding:15px;border-radius:12px;
 }
 
-h3{
-margin-top:0;
-}
-
-.stat{
-margin-bottom:10px;
-font-size:14px;
-}
-
-.toggle{
-display:flex;
-justify-content:space-between;
-align-items:center;
-margin-top:10px;
-padding:8px;
-background:#1f2937;
-border-radius:8px;
-}
+.toggle{display:flex;justify-content:space-between;margin-top:10px;}
 
 .switch{
-width:50px;
-height:25px;
-background:#374151;
-border-radius:20px;
-position:relative;
-cursor:pointer;
+width:50px;height:25px;background:#374151;border-radius:20px;
+cursor:pointer;position:relative;
 }
 
 .switch::after{
-content:'';
-width:20px;
-height:20px;
-background:white;
-position:absolute;
-top:2.5px;
-left:3px;
-border-radius:50%;
+content:'';width:20px;height:20px;background:white;
+position:absolute;top:2.5px;left:3px;border-radius:50%;
 transition:0.3s;
 }
 
-.switch.active{
-background:#22c55e;
-}
-
-.switch.active::after{
-left:26px;
-}
+.switch.active{background:#22c55e;}
+.switch.active::after{left:26px;}
 
 button{
-width:100%;
-margin-top:12px;
-padding:10px;
-border:none;
-border-radius:8px;
-background:#ef4444;
-color:white;
-font-weight:bold;
-cursor:pointer;
+width:100%;margin-top:10px;padding:10px;border:none;
+background:#ef4444;color:white;border-radius:8px;
 }
-
-.leaflet-control-attribution{
-display:none;
-}
-
 </style>
 
 </head>
@@ -108,29 +45,28 @@ display:none;
 
 <div class="panel">
 
-<h3>🚗 Smart Tracker</h3>
+<h3>Tracker</h3>
 
-<div class="stat">Lat: <span id="lat">--</span></div>
-<div class="stat">Lon: <span id="lon">--</span></div>
-<div class="stat">Speed: <span id="speed">0</span> km/h</div>
-<div class="stat">Last Update: <span id="time">--</span></div>
+<p>Lat: <span id="lat"></span></p>
+<p>Lon: <span id="lon"></span></p>
+<p>Speed: <span id="speed"></span> km/h</p>
 
 <div class="toggle">
-<span>Safety Alert</span>
-<div class="switch" id="alertBtn" onclick="toggleSwitch(this,5)"></div>
+<span>Safety</span>
+<div class="switch" onclick="toggle(this,5)"></div>
 </div>
 
 <div class="toggle">
-<span>SMS Alert</span>
-<div class="switch" id="smsBtn" onclick="toggleSwitch(this,6)"></div>
+<span>SMS</span>
+<div class="switch" onclick="toggle(this,6)"></div>
 </div>
 
 <div class="toggle">
-<span>Call Alert</span>
-<div class="switch" id="callBtn" onclick="toggleSwitch(this,7)"></div>
+<span>Call</span>
+<div class="switch" onclick="toggle(this,7)"></div>
 </div>
 
-<button onclick="findDevice()">🔔 Find Device</button>
+<button onclick="buzz()">🔔 Find Device</button>
 
 </div>
 
@@ -138,40 +74,32 @@ display:none;
 
 <script>
 
-var ch="3272807";
-var readKey="SAVKWFOOGHDSZ4CG";
-var writeKey="C6NTK8JIB7MD43EC";
+var ch=":3272807";
+var read="SAVKWFOOGHDSZ4CG";
+var write="C6NTK8JIB7MD43EC";
 
 var map=L.map('map').setView([20,78],5);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-maxZoom:19
-}).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 var marker;
 
 function update(){
 
-fetch(`https://api.thingspeak.com/channels/${ch}/feeds/last.json?api_key=${readKey}`)
+fetch(`https://api.thingspeak.com/channels/${ch}/feeds/last.json?api_key=${read}`)
 .then(r=>r.json())
 .then(d=>{
 
 let lat=parseFloat(d.field1);
 let lon=parseFloat(d.field2);
 
-document.getElementById("lat").innerHTML=lat.toFixed(6);
-document.getElementById("lon").innerHTML=lon.toFixed(6);
-document.getElementById("speed").innerHTML=d.field4 || 0;
-document.getElementById("time").innerHTML=new Date(d.created_at).toLocaleString();
+document.getElementById("lat").innerHTML=lat;
+document.getElementById("lon").innerHTML=lon;
+document.getElementById("speed").innerHTML=d.field4||0;
 
 if(marker) map.removeLayer(marker);
 
-marker=L.circleMarker([lat,lon],{
-radius:8,
-color:"#fff",
-fillColor:"#22c55e",
-fillOpacity:0.9
-}).addTo(map);
+marker=L.marker([lat,lon]).addTo(map);
 
 map.setView([lat,lon],17);
 
@@ -179,19 +107,19 @@ map.setView([lat,lon],17);
 
 }
 
-function toggleSwitch(el,field){
+function toggle(el,f){
 
 el.classList.toggle("active");
 
-let state = el.classList.contains("active") ? 1 : 0;
+let val=el.classList.contains("active")?1:0;
 
-fetch(`https://api.thingspeak.com/update?api_key=${writeKey}&field${field}=${state}`);
+fetch(`https://api.thingspeak.com/update?api_key=${write}&field${f}=${val}`);
 
 }
 
-function findDevice(){
+function buzz(){
 
-fetch(`https://api.thingspeak.com/update?api_key=${writeKey}&field8=1`);
+fetch(`https://api.thingspeak.com/update?api_key=${write}&field8=1`);
 
 }
 
