@@ -27,11 +27,16 @@ z-index:1;
 position:fixed;
 top:20px;
 right:20px;
-width:300px;
+width:320px;
 background:#111827;
 padding:15px;
 border-radius:12px;
 z-index:9999;
+}
+
+.stat{
+margin-bottom:6px;
+font-size:14px;
 }
 
 .toggle{
@@ -62,13 +67,8 @@ border-radius:50%;
 transition:0.3s;
 }
 
-.switch.active{
-background:#22c55e;
-}
-
-.switch.active::after{
-left:26px;
-}
+.switch.active{background:#22c55e;}
+.switch.active::after{left:26px;}
 
 button{
 width:100%;
@@ -96,9 +96,11 @@ display:none;
 
 <h3>🚗 Smart Tracker</h3>
 
-<p>Lat: <span id="lat">--</span></p>
-<p>Lon: <span id="lon">--</span></p>
-<p>Speed: <span id="speed">0</span> km/h</p>
+<div class="stat">📍 Lat: <span id="lat">--</span></div>
+<div class="stat">📍 Lon: <span id="lon">--</span></div>
+<div class="stat">🏃 Speed: <span id="speed">0</span> km/h</div>
+<div class="stat">⏱ Last Update: <span id="time">--</span></div>
+<div class="stat">🏠 Address: <span id="address">Fetching...</span></div>
 
 <div class="toggle">
 <span>Safety</span>
@@ -143,9 +145,16 @@ fetch(`https://api.thingspeak.com/channels/${ch}/feeds/last.json?api_key=${read}
 let lat=parseFloat(d.field1);
 let lon=parseFloat(d.field2);
 
-document.getElementById("lat").innerHTML=lat;
-document.getElementById("lon").innerHTML=lon;
+document.getElementById("lat").innerHTML=lat.toFixed(6);
+document.getElementById("lon").innerHTML=lon.toFixed(6);
 document.getElementById("speed").innerHTML=d.field4 || 0;
+
+// ✅ Last Updated Time
+document.getElementById("time").innerHTML =
+new Date(d.created_at).toLocaleString();
+
+// 📍 Address Fetch
+getAddress(lat, lon);
 
 if(marker) map.removeLayer(marker);
 
@@ -153,6 +162,20 @@ marker=L.marker([lat,lon]).addTo(map);
 
 map.setView([lat,lon],17);
 
+});
+
+}
+
+function getAddress(lat,lon){
+
+fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
+.then(res=>res.json())
+.then(data=>{
+document.getElementById("address").innerHTML =
+data.display_name || "Not available";
+})
+.catch(()=>{
+document.getElementById("address").innerHTML = "Error loading address";
 });
 
 }
