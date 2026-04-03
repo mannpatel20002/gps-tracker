@@ -2,26 +2,31 @@
 <html>
 <head>
 <title>Live Tracker</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
 <style>
 body {
   font-family: Arial;
-  text-align: center;
   background: #0f172a;
   color: white;
+  text-align: center;
 }
+
+#map { height: 300px; margin: 20px; }
 
 .card {
   background: #1e293b;
-  padding: 20px;
-  margin: 20px;
-  border-radius: 15px;
+  padding: 15px;
+  margin: 15px;
+  border-radius: 12px;
 }
 
 button {
-  padding: 10px 20px;
-  margin: 10px;
-  border: none;
+  padding: 10px 15px;
+  margin: 5px;
   border-radius: 10px;
+  border: none;
   cursor: pointer;
 }
 </style>
@@ -29,33 +34,51 @@ button {
 
 <body>
 
-<h1>🚗 Live Tracker</h1>
+<h2>📍 Live Tracker</h2>
+
+<div id="map"></div>
 
 <div class="card">
   <p>Latitude: <span id="lat"></span></p>
   <p>Longitude: <span id="lng"></span></p>
   <p>Speed: <span id="speed"></span></p>
+  <p>Last Update: <span id="time"></span></p>
 </div>
-
-<iframe id="map" width="90%" height="300"></iframe>
 
 <div class="card">
-  <button onclick="alert('Call from SIM')">Call</button>
-  <button onclick="alert('SMS Alert')">SMS</button>
-  <button onclick="alert('Buzzer Activated')">Find Device</button>
+  <button onclick="sendCommand('CALL')">Call</button>
+  <button onclick="sendCommand('SMS')">SMS</button>
+  <button onclick="sendCommand('BUZZ')">Find Device</button>
 </div>
 
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
 <script>
+let map = L.map('map').setView([0,0], 15);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
+.addTo(map);
+
+let marker = L.marker([0,0]).addTo(map);
+
 async function fetchData() {
   let res = await fetch("https://api.thingspeak.com/channels/3272807/feeds/last.json");
   let data = await res.json();
 
-  document.getElementById("lat").innerText = data.field1;
-  document.getElementById("lng").innerText = data.field2;
-  document.getElementById("speed").innerText = data.field3 + " km/h";
+  let lat = parseFloat(data.field1);
+  let lng = parseFloat(data.field2);
 
-  document.getElementById("map").src =
-    `https://maps.google.com/maps?q=${data.field1},${data.field2}&z=15&output=embed`;
+  document.getElementById("lat").innerText = lat;
+  document.getElementById("lng").innerText = lng;
+  document.getElementById("speed").innerText = data.field3 + " km/h";
+  document.getElementById("time").innerText = data.created_at;
+
+  map.setView([lat, lng], 15);
+  marker.setLatLng([lat, lng]);
+}
+
+async function sendCommand(cmd) {
+  await fetch(`https://api.thingspeak.com/update?api_key=C6NTK8JIB7MD43EC&field4=${cmd}`);
 }
 
 setInterval(fetchData, 5000);
