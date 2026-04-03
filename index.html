@@ -67,8 +67,7 @@
 
   .address-box{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:.9rem;color:var(--text);line-height:1.5;min-height:54px;}
 
-  /* DEBUG BOX */
-  .debug-box{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:'Space Mono',monospace;font-size:.62rem;color:var(--muted);line-height:1.7;word-break:break-all;}
+  .debug-box{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:'Space Mono',monospace;font-size:.62rem;color:var(--muted);line-height:1.8;word-break:break-all;}
   .debug-box span{color:var(--accent4);}
 
   .alert-banner{display:none;padding:12px 16px;border-radius:8px;border:1px solid var(--accent2);background:rgba(255,59,92,.1);color:var(--accent2);font-family:'Space Mono',monospace;font-size:.75rem;letter-spacing:1px;align-items:center;gap:10px;animation:alertFlash .6s ease infinite;}
@@ -100,11 +99,11 @@
 
   .log-panel{grid-column:span 2;}
   .log-inner{height:130px;overflow-y:auto;font-family:'Space Mono',monospace;font-size:.68rem;line-height:1.8;color:var(--muted);scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
-  .log-inner .log-entry{padding:2px 0;border-bottom:1px solid rgba(26,37,64,.5);}
-  .log-inner .log-entry.info{color:var(--accent4);}
-  .log-inner .log-entry.warn{color:var(--accent3);}
-  .log-inner .log-entry.alert{color:var(--accent2);}
-  .log-inner .log-entry.ok{color:var(--accent);}
+  .log-entry{padding:2px 0;border-bottom:1px solid rgba(26,37,64,.5);}
+  .log-entry.info{color:var(--accent4);}
+  .log-entry.warn{color:var(--accent3);}
+  .log-entry.alert{color:var(--accent2);}
+  .log-entry.ok{color:var(--accent);}
 
   .timestamp{font-family:'Space Mono',monospace;font-size:.65rem;color:var(--muted);}
   .last-update{font-family:'Space Mono',monospace;font-size:.6rem;color:var(--muted);text-align:right;margin-top:8px;}
@@ -144,10 +143,9 @@
   <div class="sidebar">
 
     <div class="alert-banner" id="alertBanner">
-      ⚠ &nbsp;<span id="alertMsg">SHOCK / VIBRATION DETECTED</span>
+      ⚠ &nbsp;<span>SHOCK / VIBRATION DETECTED</span>
     </div>
 
-    <!-- Coordinates -->
     <div class="card">
       <div class="card-title">Coordinates</div>
       <div class="coords-grid">
@@ -162,7 +160,6 @@
       </div>
     </div>
 
-    <!-- Speed -->
     <div class="card">
       <div class="card-title">Speed</div>
       <div class="speed-wrap">
@@ -179,13 +176,11 @@
       </div>
     </div>
 
-    <!-- Address -->
     <div class="card">
       <div class="card-title">Location Address</div>
       <div class="address-box" id="addressEl">Waiting for GPS fix…</div>
     </div>
 
-    <!-- GPS Info -->
     <div class="card">
       <div class="card-title">GPS Signal</div>
       <div class="sat-row">
@@ -201,13 +196,11 @@
       <div class="last-update">Last sync: <span id="lastUpdateEl">--</span></div>
     </div>
 
-    <!-- DEBUG — shows raw API response so you can see exactly what arrives -->
     <div class="card">
       <div class="card-title">API Debug</div>
       <div class="debug-box" id="debugEl">Waiting for first fetch…</div>
     </div>
 
-    <!-- Toggles -->
     <div class="card">
       <div class="card-title">Alert Triggers (MPU Sensor)</div>
       <div class="toggle-row">
@@ -224,7 +217,6 @@
       </div>
     </div>
 
-    <!-- Actions -->
     <div class="card">
       <div class="card-title">Manual Actions</div>
       <div class="action-grid">
@@ -236,9 +228,8 @@
       </div>
     </div>
 
-  </div><!-- /sidebar -->
+  </div>
 
-  <!-- MAP -->
   <div class="map-wrap">
     <div id="map"></div>
     <div class="map-overlay">
@@ -246,7 +237,6 @@
     </div>
   </div>
 
-  <!-- LOG -->
   <div class="card log-panel">
     <div class="card-title">System Log</div>
     <div class="log-inner" id="logEl"></div>
@@ -269,29 +259,43 @@ let buzzerTimer = null;
 let lastEntryId = null;
 let fetchFailCount = 0;
 
-// ── MAP INIT ────────────────────────────────────────────────
+// ── MAP ─────────────────────────────────────────────────────
 function initMap() {
   map = L.map('map', { zoomControl: true }).setView([20.5937, 78.9629], 5);
+
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '© OpenStreetMap © CARTO',
-    subdomains: 'abcd', maxZoom: 19
+    subdomains: 'abcd',
+    maxZoom: 19
   }).addTo(map);
 
   const icon = L.divIcon({
     html: `<div style="
-      width:18px;height:18px;
-      background:radial-gradient(circle,#00f5c4 30%,rgba(0,245,196,0) 100%);
-      border:2px solid #00f5c4;border-radius:50%;
-      box-shadow:0 0 16px #00f5c4;
-      animation:mp 1.4s infinite;">
-    </div>
-    <style>@keyframes mp{0%,100%{box-shadow:0 0 8px #00f5c4}50%{box-shadow:0 0 24px #00f5c4}}</style>`,
-    className:'', iconSize:[18,18], iconAnchor:[9,9]
+        width:18px;height:18px;
+        background:radial-gradient(circle,#00f5c4 30%,rgba(0,245,196,0) 100%);
+        border:2px solid #00f5c4;
+        border-radius:50%;
+        box-shadow:0 0 16px #00f5c4;
+        animation:mp 1.4s infinite;">
+      </div>
+      <style>
+        @keyframes mp{
+          0%,100%{box-shadow:0 0 8px #00f5c4}
+          50%{box-shadow:0 0 24px #00f5c4,0 0 40px rgba(0,245,196,.4)}
+        }
+      </style>`,
+    className: '',
+    iconSize: [18, 18],
+    iconAnchor: [9, 9]
   });
 
   marker = L.marker([20.5937, 78.9629], { icon }).addTo(map);
   accuracyCircle = L.circle([20.5937, 78.9629], {
-    radius:50, color:'#00f5c4', fillColor:'#00f5c4', fillOpacity:0.08, weight:1
+    radius: 50,
+    color: '#00f5c4',
+    fillColor: '#00f5c4',
+    fillOpacity: 0.08,
+    weight: 1
   }).addTo(map);
 
   addLog('Map initialised', 'ok');
@@ -306,7 +310,8 @@ setInterval(updateClock, 1000);
 updateClock();
 
 // ── LOG ─────────────────────────────────────────────────────
-function addLog(msg, type='info') {
+function addLog(msg, type) {
+  type = type || 'info';
   const el  = document.getElementById('logEl');
   const t   = new Date().toLocaleTimeString('en-IN', { hour12: false });
   const div = document.createElement('div');
@@ -317,154 +322,171 @@ function addLog(msg, type='info') {
 }
 
 // ── FETCH ───────────────────────────────────────────────────
-// FIXED: use /feeds/last.json with both channel key formats
-// ThingSpeak requires channel to be PUBLIC or use api_key param
-async function fetchData() {
-  // Primary URL — works for PUBLIC channels and with read key
+function fetchData() {
+  // Using XMLHttpRequest instead of fetch() to avoid
+  // any browser CORS preflight issues with GitHub Pages
   const url = 'https://api.thingspeak.com/channels/' + TS_CHANNEL
-            + '/feeds/last.json?api_key=' + TS_READ_KEY + '&timezone=Asia%2FKolkata';
+            + '/feeds/last.json?api_key=' + TS_READ_KEY;
 
-  try {
-    addLog('Fetching: ' + url, 'info');
+  addLog('Polling ThingSpeak...', 'info');
 
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' },
-      // no-cors removed — we need to actually read the response
-    });
+  const xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.timeout = 10000;
 
-    if (!res.ok) {
-      throw new Error('HTTP ' + res.status + ' ' + res.statusText);
+  xhr.onload = function () {
+    if (xhr.status === 200) {
+      try {
+        const data = JSON.parse(xhr.responseText);
+        fetchFailCount = 0;
+
+        // Show raw in debug box
+        document.getElementById('debugEl').innerHTML =
+          '<span>HTTP:</span> 200 OK<br>' +
+          '<span>entry_id:</span> '  + (data.entry_id   || '?')    + '&nbsp;&nbsp;' +
+          '<span>created:</span> '   + (data.created_at || '?')    + '<br>' +
+          '<span>f1 lat:</span> '    + (data.field1     || 'null') + '&nbsp;' +
+          '<span>f2 lng:</span> '    + (data.field2     || 'null') + '<br>' +
+          '<span>f3 spd:</span> '    + (data.field3     || 'null') + '&nbsp;' +
+          '<span>f4 alrt:</span> '   + (data.field4     || 'null') + '<br>' +
+          '<span>f5 sms:</span> '    + (data.field5     || 'null') + '&nbsp;' +
+          '<span>f6 call:</span> '   + (data.field6     || 'null') + '<br>' +
+          '<span>f7 buzz:</span> '   + (data.field7     || 'null') + '&nbsp;' +
+          '<span>f8 sat:</span> '    + (data.field8     || 'null');
+
+        processData(data);
+
+      } catch (e) {
+        fetchFailCount++;
+        setStatus(false);
+        addLog('JSON parse error: ' + e.message, 'alert');
+        document.getElementById('debugEl').innerHTML =
+          '<span style="color:var(--accent2)">PARSE ERROR:</span> ' + e.message +
+          '<br>Raw: ' + xhr.responseText.substring(0, 150);
+      }
+    } else {
+      fetchFailCount++;
+      setStatus(false);
+      addLog('HTTP error: ' + xhr.status + ' ' + xhr.statusText, 'alert');
+      document.getElementById('debugEl').innerHTML =
+        '<span style="color:var(--accent2)">HTTP ERROR:</span> ' + xhr.status +
+        '<br>' + xhr.responseText.substring(0, 150);
     }
+  };
 
-    const raw  = await res.text();
-
-    // Show raw response in debug box so you can see exactly what arrives
-    document.getElementById('debugEl').innerHTML =
-      '<span>Status:</span> ' + res.status + '<br>' +
-      '<span>Raw:</span> ' + raw.substring(0, 300);
-
-    // Parse JSON safely
-    let data;
-    try {
-      data = JSON.parse(raw);
-    } catch(e) {
-      throw new Error('JSON parse failed: ' + raw.substring(0, 100));
-    }
-
-    fetchFailCount = 0;
-    processData(data);
-
-  } catch(e) {
+  xhr.onerror = function () {
     fetchFailCount++;
     setStatus(false);
-    addLog('Fetch error (' + fetchFailCount + '): ' + e.message, 'alert');
+    addLog('Network error — check internet connection', 'alert');
     document.getElementById('debugEl').innerHTML =
-      '<span style="color:var(--accent2)">ERROR:</span> ' + e.message +
-      '<br><span>URL:</span> ' + url;
+      '<span style="color:var(--accent2)">NETWORK ERROR</span><br>' +
+      'Cannot reach api.thingspeak.com<br>' +
+      'Check: internet connection, channel is PUBLIC';
+  };
 
-    // After 3 failures remind user to check channel privacy
-    if (fetchFailCount === 3) {
-      addLog('CHECK: Is ThingSpeak channel set to PUBLIC? (Channel Settings → Make Public)', 'warn');
-    }
-  }
+  xhr.ontimeout = function () {
+    fetchFailCount++;
+    setStatus(false);
+    addLog('Request timeout after 10s', 'warn');
+  };
+
+  xhr.send();
 }
 
 // ── PROCESS DATA ────────────────────────────────────────────
-function processData(d) {
-  // ThingSpeak feeds/last.json returns the feed object directly
-  // but sometimes wraps it — handle both
-  const feed = d.feeds ? d.feeds[0] : d;
-
-  if (!feed) {
-    addLog('No feed data in response', 'warn');
+function processData(data) {
+  // Defensive: ThingSpeak /feeds/last.json returns the
+  // entry object directly — field1..field8 at root level
+  if (!data || !data.entry_id) {
+    addLog('No entry_id in response — channel may be empty', 'warn');
     setStatus(false);
     return;
   }
 
-  // Show all received fields in debug
-  document.getElementById('debugEl').innerHTML =
-    '<span>entry_id:</span> '  + (feed.entry_id  || '?') + '&nbsp;&nbsp;' +
-    '<span>created:</span> '   + (feed.created_at || '?') + '<br>' +
-    '<span>f1(lat):</span> '   + (feed.field1 || 'null') + '&nbsp;&nbsp;' +
-    '<span>f2(lng):</span> '   + (feed.field2 || 'null') + '<br>' +
-    '<span>f3(spd):</span> '   + (feed.field3 || 'null') + '&nbsp;&nbsp;' +
-    '<span>f4(alrt):</span> '  + (feed.field4 || 'null') + '&nbsp;&nbsp;' +
-    '<span>f5(sms):</span> '   + (feed.field5 || 'null') + '<br>' +
-    '<span>f6(call):</span> '  + (feed.field6 || 'null') + '&nbsp;&nbsp;' +
-    '<span>f7(buzz):</span> '  + (feed.field7 || 'null') + '&nbsp;&nbsp;' +
-    '<span>f8(sat):</span> '   + (feed.field8 || 'null');
+  const lat   = parseFloat(data.field1);
+  const lng   = parseFloat(data.field2);
+  const speed = parseFloat(data.field3) || 0;
+  const alert = parseInt(data.field4)   || 0;
+  const smsF  = data.field5 !== null && data.field5 !== undefined
+                  ? parseInt(data.field5) : -1;
+  const callF = data.field6 !== null && data.field6 !== undefined
+                  ? parseInt(data.field6) : -1;
+  const sats  = parseInt(data.field8) || 0;
 
-  const lat   = parseFloat(feed.field1);
-  const lng   = parseFloat(feed.field2);
-  const speed = parseFloat(feed.field3) || 0;
-  const alert = parseInt(feed.field4)   || 0;
-  const smsF  = feed.field5 !== null && feed.field5 !== undefined ? parseInt(feed.field5) : -1;
-  const callF = feed.field6 !== null && feed.field6 !== undefined ? parseInt(feed.field6) : -1;
-  const sats  = parseInt(feed.field8)  || 0;
-
-  // Validate GPS
   const gpsOk = !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
 
-  // Update status
+  // ── Status dot
   setStatus(gpsOk);
 
-  // Coordinates
-  document.getElementById('latEl').textContent  = gpsOk ? lat.toFixed(6) : '--';
-  document.getElementById('lngEl').textContent  = gpsOk ? lng.toFixed(6) : '--';
+  // ── Coordinates
+  document.getElementById('latEl').textContent = gpsOk ? lat.toFixed(6) : '--';
+  document.getElementById('lngEl').textContent = gpsOk ? lng.toFixed(6) : '--';
 
-  // Speed
+  // ── Speed
   const spd = isNaN(speed) ? 0 : speed;
   document.getElementById('speedEl').textContent = spd.toFixed(1);
-  document.getElementById('speedBar').style.width = Math.min(spd / 200 * 100, 100) + '%';
+  document.getElementById('speedBar').style.width =
+    Math.min(spd / 200 * 100, 100) + '%';
   if (spd > maxSpeed) {
     maxSpeed = spd;
     document.getElementById('maxSpeedEl').textContent = maxSpeed.toFixed(1);
   }
 
-  // Satellites
+  // ── Satellites
   document.getElementById('satEl').textContent = sats;
 
-  // GPS status label
-  document.getElementById('gpsStatusEl').textContent  = gpsOk ? 'FIX OK' : 'NO FIX';
-  document.getElementById('gpsStatusEl').style.color   = gpsOk ? 'var(--accent)' : 'var(--muted)';
+  // ── GPS fix status
+  document.getElementById('gpsStatusEl').textContent =
+    gpsOk ? 'FIX OK' : 'NO FIX';
+  document.getElementById('gpsStatusEl').style.color =
+    gpsOk ? 'var(--accent)' : 'var(--muted)';
 
-  // Last update time
-  if (feed.created_at) {
-    const d = new Date(feed.created_at);
-    document.getElementById('lastUpdateEl').textContent =
-      d.toLocaleTimeString('en-IN', { hour12: false });
+  // ── Last update time
+  if (data.created_at) {
+    try {
+      document.getElementById('lastUpdateEl').textContent =
+        new Date(data.created_at).toLocaleTimeString('en-IN', { hour12: false });
+    } catch(e) {}
   }
 
-  // Map update
+  // ── Map + address
   if (gpsOk) {
     const ll = [lat, lng];
     marker.setLatLng(ll);
     accuracyCircle.setLatLng(ll);
     marker.bindPopup(
-      '<b>📍 Device</b><br>Lat: ' + lat.toFixed(6) +
-      '<br>Lng: ' + lng.toFixed(6) +
-      '<br>Speed: ' + spd.toFixed(1) + ' km/h'
+      '<b>📍 Device</b><br>' +
+      'Lat: '   + lat.toFixed(6) + '<br>' +
+      'Lng: '   + lng.toFixed(6) + '<br>' +
+      'Speed: ' + spd.toFixed(1) + ' km/h<br>' +
+      'Sats: '  + sats
     );
     map.panTo(ll);
     document.getElementById('mapCoordLabel').textContent =
       lat.toFixed(4) + '°N  ' + lng.toFixed(4) + '°E';
     reverseGeocode(lat, lng);
-    addLog('Position: ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + ' | ' + spd.toFixed(1) + ' km/h', 'ok');
+    addLog(
+      'OK → ' + lat.toFixed(5) + ', ' + lng.toFixed(5) +
+      ' | ' + spd.toFixed(1) + ' km/h | sats=' + sats, 'ok'
+    );
   } else {
-    addLog('GPS not fixed yet — lat=' + feed.field1 + ' lng=' + feed.field2, 'warn');
+    addLog(
+      'GPS not fixed — f1=' + data.field1 +
+      ' f2=' + data.field2 +
+      ' (device may be indoors)', 'warn'
+    );
   }
 
-  // Alert banner
-  if (alert === 1 && feed.entry_id !== lastEntryId) {
-    lastEntryId = feed.entry_id;
+  // ── Alert banner
+  if (alert === 1 && data.entry_id !== lastEntryId) {
+    lastEntryId = data.entry_id;
     showAlert();
-    addLog('⚠ SHOCK ALERT received! entry_id=' + feed.entry_id, 'alert');
+    addLog('⚠ SHOCK ALERT! entry=' + data.entry_id, 'alert');
   } else if (alert !== 1) {
     hideAlert();
   }
 
-  // Sync toggles from device-uploaded values
+  // ── Sync toggle state from device
   if (smsF  === 1) syncToggle('sms',  true);
   if (smsF  === 0) syncToggle('sms',  false);
   if (callF === 1) syncToggle('call', true);
@@ -472,29 +494,50 @@ function processData(d) {
 }
 
 // ── REVERSE GEOCODE ─────────────────────────────────────────
-let lastGeoLat = null, lastGeoLng = null;
-async function reverseGeocode(lat, lng) {
+let lastGeoLat = null;
+let lastGeoLng = null;
+
+function reverseGeocode(lat, lng) {
   if (lastGeoLat !== null &&
       Math.abs(lat - lastGeoLat) < 0.001 &&
       Math.abs(lng - lastGeoLng) < 0.001) return;
-  lastGeoLat = lat; lastGeoLng = lng;
 
-  try {
-    const r = await fetch(
-      'https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&zoom=16',
-      { headers: { 'Accept-Language': 'en' } }
-    );
-    const j = await r.json();
-    document.getElementById('addressEl').textContent = j.display_name || 'Address not found';
-  } catch {
+  lastGeoLat = lat;
+  lastGeoLng = lng;
+
+  const url = 'https://nominatim.openstreetmap.org/reverse?format=json&lat='
+            + lat + '&lon=' + lng + '&zoom=16';
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.setRequestHeader('Accept-Language', 'en');
+  xhr.timeout = 8000;
+
+  xhr.onload = function () {
+    if (xhr.status === 200) {
+      try {
+        const j = JSON.parse(xhr.responseText);
+        document.getElementById('addressEl').textContent =
+          j.display_name || 'Address not found';
+      } catch(e) {
+        document.getElementById('addressEl').textContent = 'Address parse error';
+      }
+    }
+  };
+
+  xhr.onerror = function () {
     document.getElementById('addressEl').textContent = 'Address lookup failed';
-  }
+  };
+
+  xhr.send();
 }
 
 // ── STATUS ──────────────────────────────────────────────────
 function setStatus(online) {
-  document.getElementById('statusDot').className   = online ? 'dot live' : 'dot';
-  document.getElementById('statusText').textContent = online ? 'LIVE' : 'OFFLINE';
+  document.getElementById('statusDot').className =
+    online ? 'dot live' : 'dot';
+  document.getElementById('statusText').textContent =
+    online ? 'LIVE' : 'OFFLINE';
 }
 
 // ── ALERT ───────────────────────────────────────────────────
@@ -503,6 +546,7 @@ function showAlert() {
   document.getElementById('statusDot').className = 'dot alert';
   setTimeout(hideAlert, 30000);
 }
+
 function hideAlert() {
   document.getElementById('alertBanner').classList.remove('show');
 }
@@ -525,56 +569,71 @@ function toggleAlert(type) {
 function syncToggle(type, val) {
   if (type === 'sms') {
     smsOn = val;
-    document.getElementById('smsToggle').className  = 'toggle-btn' + (val ? ' on' : '');
-    document.getElementById('smsState').textContent  = val ? 'ON' : 'OFF';
+    document.getElementById('smsToggle').className =
+      'toggle-btn' + (val ? ' on' : '');
+    document.getElementById('smsState').textContent = val ? 'ON' : 'OFF';
   } else {
     callOn = val;
-    document.getElementById('callToggle').className  = 'toggle-btn' + (val ? ' on' : '');
-    document.getElementById('callState').textContent  = val ? 'ON' : 'OFF';
+    document.getElementById('callToggle').className =
+      'toggle-btn' + (val ? ' on' : '');
+    document.getElementById('callState').textContent = val ? 'ON' : 'OFF';
   }
 }
 
-// ── WRITE FIELD ─────────────────────────────────────────────
-async function writeField(fieldNum, value) {
+// ── WRITE FIELD TO THINGSPEAK ────────────────────────────────
+function writeField(fieldNum, value) {
   const url = 'https://api.thingspeak.com/update?api_key=' + TS_WRITE_KEY
             + '&field' + fieldNum + '=' + value;
-  try {
-    const r = await fetch(url);
-    const t = await r.text();
-    addLog('Write field' + fieldNum + '=' + value + ' → entry ' + t.trim(), 'ok');
-  } catch(e) {
-    addLog('Write error: ' + e.message, 'warn');
-  }
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.timeout = 8000;
+
+  xhr.onload = function () {
+    addLog(
+      'Write field' + fieldNum + '=' + value +
+      ' → entry ' + xhr.responseText.trim(), 'ok'
+    );
+  };
+
+  xhr.onerror = function () {
+    addLog('Write field' + fieldNum + ' failed', 'warn');
+  };
+
+  xhr.send();
 }
 
-// ── FIND DEVICE ─────────────────────────────────────────────
-async function triggerFind() {
-  addLog('Find device — writing field7=1 → buzzer will activate', 'warn');
+// ── FIND DEVICE BUZZER ───────────────────────────────────────
+function triggerFind() {
+  addLog('FIND DEVICE — writing field7=1 → buzzer activates on device', 'warn');
   const btn = document.getElementById('findBtn');
   btn.classList.add('buzzing');
-  await writeField(7, 1);
+  writeField(7, 1);
   if (buzzerTimer) clearTimeout(buzzerTimer);
-  buzzerTimer = setTimeout(() => btn.classList.remove('buzzing'), 7000);
+  buzzerTimer = setTimeout(function () {
+    btn.classList.remove('buzzing');
+  }, 7000);
 }
 
 // ── MANUAL CALL ─────────────────────────────────────────────
-async function triggerCall() {
-  addLog('Manual CALL ALERT written to field4=2', 'alert');
-  await writeField(4, 2);
+function triggerCall() {
+  addLog('Manual CALL ALERT — writing field4=2', 'alert');
+  writeField(4, 2);
 }
 
 // ── MANUAL SMS ──────────────────────────────────────────────
-async function triggerSMS() {
-  addLog('Manual SMS ALERT written to field4=3', 'alert');
-  await writeField(4, 3);
+function triggerSMS() {
+  addLog('Manual SMS ALERT — writing field4=3', 'alert');
+  writeField(4, 3);
 }
 
 // ── INIT ────────────────────────────────────────────────────
 initMap();
 fetchData();
 setInterval(fetchData, REFRESH_MS);
-addLog('Dashboard started — polling every ' + (REFRESH_MS/1000) + 's', 'info');
-addLog('Channel: ' + TS_CHANNEL + ' | Key: ' + TS_READ_KEY.substring(0,4) + '****', 'info');
+
+addLog('Dashboard started — polling every ' + (REFRESH_MS / 1000) + 's', 'info');
+addLog('Channel: ' + TS_CHANNEL, 'info');
 </script>
 </body>
 </html>
