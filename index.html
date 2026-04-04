@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>GPS Live Tracker</title>
+<title>GPS Live Tracker Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -105,7 +105,7 @@
   <div class="sidebar">
 
     <div class="alert-banner" id="alertBanner">
-      ⚠ &nbsp;<span>SHOCK / VIBRATION DETECTED</span>
+      ⚠  <span>SHOCK / VIBRATION DETECTED</span>
     </div>
 
     <div class="card">
@@ -183,7 +183,7 @@
         <button class="action-btn btn-call" id="btnCall" onclick="triggerCall()">📞 CALL NOW</button>
         <button class="action-btn btn-sms"  id="btnSMS"  onclick="triggerSMS()">💬 SMS NOW</button>
         <button class="action-btn btn-find" id="findBtn" onclick="triggerFind()">
-          🔔 &nbsp;FIND DEVICE — ACTIVATE BUZZER
+          🔔  FIND DEVICE — ACTIVATE BUZZER
         </button>
       </div>
     </div>
@@ -192,7 +192,7 @@
 
   <div class="map-wrap">
     <div id="map"></div>
-    <div class="map-overlay">TRACKING &nbsp;<span id="mapCoordLabel">--°N  --°E</span></div>
+    <div class="map-overlay">TRACKING  <span id="mapCoordLabel">--°N  --°E</span></div>
   </div>
 
   <div class="card log-panel">
@@ -212,20 +212,18 @@ var REFRESH_MS   = 15000;
 
 // ══════════════════════════════════════════════
 //  STATE
-//  Toggle state is LOCAL only — never overwritten
-//  by incoming ThingSpeak data after user clicks
 // ══════════════════════════════════════════════
 var map, marker, accuracyCircle;
-var smsOn    = false;   // DEFAULT OFF
-var callOn   = false;   // DEFAULT OFF
+var smsOn    = false;   // Starts OFF by default as requested
+var callOn   = false;   // Starts OFF by default as requested
 var maxSpeed = 0;
 var lastEntryId   = null;
 var buzzerTimer   = null;
-var actionLocked  = false; // prevent double-clicks
-var toggleLocked  = false; // prevent toggle overwrite after user clicks
+var actionLocked  = false; 
+var toggleLocked  = false; 
 
 // ══════════════════════════════════════════════
-//  MAP
+//  MAP INITIALIZATION
 // ══════════════════════════════════════════════
 function initMap() {
   map = L.map('map', { zoomControl: true }).setView([20.5937, 78.9629], 5);
@@ -248,18 +246,14 @@ function initMap() {
 }
 
 // ══════════════════════════════════════════════
-//  CLOCK
+//  CLOCK & LOGS
 // ══════════════════════════════════════════════
 function updateClock() {
-  document.getElementById('clockEl').textContent =
-    new Date().toLocaleTimeString('en-IN', { hour12: false });
+  document.getElementById('clockEl').textContent = new Date().toLocaleTimeString('en-IN', { hour12: false });
 }
 setInterval(updateClock, 1000);
 updateClock();
 
-// ══════════════════════════════════════════════
-//  LOG
-// ══════════════════════════════════════════════
 function addLog(msg, type) {
   type = type || 'info';
   var el  = document.getElementById('logEl');
@@ -275,9 +269,7 @@ function addLog(msg, type) {
 //  FETCH DATA FROM THINGSPEAK
 // ══════════════════════════════════════════════
 function fetchData() {
-  var url = 'https://api.thingspeak.com/channels/' + TS_CHANNEL
-          + '/feeds/last.json?api_key=' + TS_READ_KEY;
-
+  var url = 'https://api.thingspeak.com/channels/' + TS_CHANNEL + '/feeds/last.json?api_key=' + TS_READ_KEY;
   var xhr = new XMLHttpRequest();
   xhr.open('GET', url, true);
   xhr.timeout = 10000;
@@ -286,17 +278,16 @@ function fetchData() {
     if (xhr.status === 200) {
       try {
         var data = JSON.parse(xhr.responseText);
-
         document.getElementById('debugEl').innerHTML =
-          '<span>HTTP:</span> 200 OK&nbsp;&nbsp;' +
+          '<span>HTTP:</span> 200 OK  ' +
           '<span>entry:</span> '   + (data.entry_id   || '?') + '<br>' +
-          '<span>f1 lat:</span> '  + (data.field1     || 'null') + '&nbsp;' +
+          '<span>f1 lat:</span> '  + (data.field1     || 'null') + ' ' +
           '<span>f2 lng:</span> '  + (data.field2     || 'null') + '<br>' +
-          '<span>f3 spd:</span> '  + (data.field3     || 'null') + '&nbsp;' +
+          '<span>f3 spd:</span> '  + (data.field3     || 'null') + ' ' +
           '<span>f4:</span> '      + (data.field4     || 'null') + '<br>' +
-          '<span>f5 sms:</span> '  + (data.field5     || 'null') + '&nbsp;' +
+          '<span>f5 sms:</span> '  + (data.field5     || 'null') + ' ' +
           '<span>f6 call:</span> ' + (data.field6     || 'null') + '<br>' +
-          '<span>f7 buzz:</span> ' + (data.field7     || 'null') + '&nbsp;' +
+          '<span>f7 buzz:</span> ' + (data.field7     || 'null') + ' ' +
           '<span>f8 sat:</span> '  + (data.field8     || 'null');
 
         processData(data);
@@ -317,12 +308,9 @@ function fetchData() {
 
 // ══════════════════════════════════════════════
 //  PROCESS DATA
-//  KEY FIX: toggle state is NEVER overwritten
-//  from ThingSpeak after user has clicked a toggle
 // ══════════════════════════════════════════════
 function processData(data) {
   if (!data || !data.entry_id) {
-    addLog('No data — channel empty or private', 'warn');
     setStatus(false);
     return;
   }
@@ -336,11 +324,9 @@ function processData(data) {
 
   setStatus(gpsOk);
 
-  // Coordinates
   document.getElementById('latEl').textContent = gpsOk ? lat.toFixed(6) : '--';
   document.getElementById('lngEl').textContent = gpsOk ? lng.toFixed(6) : '--';
 
-  // Speed
   var spd = isNaN(speed) ? 0 : speed;
   document.getElementById('speedEl').textContent = spd.toFixed(1);
   document.getElementById('speedBar').style.width = Math.min(spd/200*100,100) + '%';
@@ -349,19 +335,16 @@ function processData(data) {
     document.getElementById('maxSpeedEl').textContent = maxSpeed.toFixed(1);
   }
 
-  // GPS info
   document.getElementById('satEl').textContent = sats;
   document.getElementById('gpsStatusEl').textContent = gpsOk ? 'FIX OK' : 'NO FIX';
   document.getElementById('gpsStatusEl').style.color  = gpsOk ? 'var(--accent)' : 'var(--muted)';
 
   if (data.created_at) {
     try {
-      document.getElementById('lastUpdateEl').textContent =
-        new Date(data.created_at).toLocaleTimeString('en-IN',{hour12:false});
+      document.getElementById('lastUpdateEl').textContent = new Date(data.created_at).toLocaleTimeString('en-IN',{hour12:false});
     } catch(e){}
   }
 
-  // Map
   if (gpsOk) {
     var ll = [lat, lng];
     marker.setLatLng(ll);
@@ -370,12 +353,8 @@ function processData(data) {
     map.panTo(ll);
     document.getElementById('mapCoordLabel').textContent = lat.toFixed(4)+'°N  '+lng.toFixed(4)+'°E';
     reverseGeocode(lat, lng);
-    addLog('GPS → '+lat.toFixed(5)+', '+lng.toFixed(5)+' | '+spd.toFixed(1)+' km/h | sats='+sats, 'ok');
-  } else {
-    addLog('Waiting GPS fix — f1='+data.field1+' f2='+data.field2, 'warn');
   }
 
-  // Alert banner
   if (alert === 1 && data.entry_id !== lastEntryId) {
     lastEntryId = data.entry_id;
     showAlert();
@@ -384,10 +363,7 @@ function processData(data) {
     hideAlert();
   }
 
-  // ── TOGGLE SYNC ──────────────────────────────────
-  // ONLY sync from ThingSpeak if user has NOT
-  // manually clicked a toggle in this session
-  // This prevents location updates from resetting toggles
+  // Only sync toggles from TS if user hasn't clicked them manually
   if (!toggleLocked) {
     var smsF  = (data.field5 !== null && data.field5 !== undefined) ? parseInt(data.field5) : -1;
     var callF = (data.field6 !== null && data.field6 !== undefined) ? parseInt(data.field6) : -1;
@@ -403,9 +379,7 @@ function processData(data) {
 // ══════════════════════════════════════════════
 var lastGeoLat = null, lastGeoLng = null;
 function reverseGeocode(lat, lng) {
-  if (lastGeoLat !== null &&
-      Math.abs(lat - lastGeoLat) < 0.001 &&
-      Math.abs(lng - lastGeoLng) < 0.001) return;
+  if (lastGeoLat !== null && Math.abs(lat - lastGeoLat) < 0.001 && Math.abs(lng - lastGeoLng) < 0.001) return;
   lastGeoLat = lat; lastGeoLng = lng;
 
   var xhr = new XMLHttpRequest();
@@ -423,33 +397,26 @@ function reverseGeocode(lat, lng) {
   xhr.send();
 }
 
-// ══════════════════════════════════════════════
-//  STATUS
-// ══════════════════════════════════════════════
 function setStatus(online) {
   document.getElementById('statusDot').className    = online ? 'dot live' : 'dot';
   document.getElementById('statusText').textContent = online ? 'LIVE' : 'OFFLINE';
 }
 
-// ══════════════════════════════════════════════
-//  ALERT BANNER
-// ══════════════════════════════════════════════
 function showAlert() {
   document.getElementById('alertBanner').classList.add('show');
   document.getElementById('statusDot').className = 'dot alert';
   setTimeout(hideAlert, 30000);
 }
+
 function hideAlert() {
   document.getElementById('alertBanner').classList.remove('show');
 }
 
 // ══════════════════════════════════════════════
-//  TOGGLE — user click
-//  Sets toggleLocked=true so location updates
-//  never overwrite what user manually set
+//  TOGGLES
 // ══════════════════════════════════════════════
 function toggleAlert(type) {
-  toggleLocked = true;  // lock — user has taken control
+  toggleLocked = true; 
 
   if (type === 'sms') {
     smsOn = !smsOn;
@@ -464,7 +431,6 @@ function toggleAlert(type) {
   }
 }
 
-// Apply toggle visual state only (no side effects)
 function applyToggle(type, val) {
   if (type === 'sms') {
     smsOn = val;
@@ -478,11 +444,10 @@ function applyToggle(type, val) {
 }
 
 // ══════════════════════════════════════════════
-//  WRITE FIELD
+//  WRITE FIELD TO THINGSPEAK
 // ══════════════════════════════════════════════
 function writeField(fieldNum, value, cb) {
-  var url = 'https://api.thingspeak.com/update?api_key=' + TS_WRITE_KEY
-          + '&field' + fieldNum + '=' + value;
+  var url = 'https://api.thingspeak.com/update?api_key=' + TS_WRITE_KEY + '&field' + fieldNum + '=' + value;
   var xhr = new XMLHttpRequest();
   xhr.open('GET', url, true);
   xhr.timeout = 8000;
@@ -499,7 +464,7 @@ function writeField(fieldNum, value, cb) {
 }
 
 // ══════════════════════════════════════════════
-//  FIND DEVICE BUZZER
+//  FIND DEVICE BUZZER (FIXED)
 // ══════════════════════════════════════════════
 function triggerFind() {
   if (actionLocked) return;
@@ -528,8 +493,7 @@ function triggerFind() {
 }
 
 // ══════════════════════════════════════════════
-//  MANUAL CALL — writes field4=2
-//  ESP32 checkCommands() reads this and dials
+//  MANUAL CALL & SMS
 // ══════════════════════════════════════════════
 function triggerCall() {
   if (actionLocked) return;
@@ -555,10 +519,6 @@ function triggerCall() {
   });
 }
 
-// ══════════════════════════════════════════════
-//  MANUAL SMS — writes field4=3
-//  ESP32 checkCommands() reads this and sends SMS
-// ══════════════════════════════════════════════
 function triggerSMS() {
   if (actionLocked) return;
   actionLocked = true;
@@ -587,8 +547,12 @@ function triggerSMS() {
 //  INIT
 // ══════════════════════════════════════════════
 initMap();
+// Explicitly apply OFF visual state on boot
 applyToggle('sms',  false);
 applyToggle('call', false);
+// Lock the toggles so ThingSpeak history doesn't overwrite the OFF default
+toggleLocked = true; 
+
 fetchData();
 setInterval(fetchData, REFRESH_MS);
 addLog('Dashboard started — polling every ' + (REFRESH_MS/1000) + 's', 'info');
