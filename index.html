@@ -1,562 +1,90 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>GPS Live Tracker Dashboard</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<style>
-  :root{--bg:#080c14;--panel:#0d1422;--border:#1a2540;--accent:#00f5c4;--accent2:#ff3b5c;--accent3:#ffd700;--accent4:#4fc3f7;--text:#e0eaff;--muted:#5a6a8a;--card:#111926;--glow:rgba(0,245,196,0.18);}
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;overflow-x:hidden;}
-  body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.04) 3px,rgba(0,0,0,.04) 4px);pointer-events:none;z-index:9999;}
-  header{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;background:var(--panel);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;}
-  .logo{display:flex;align-items:center;gap:12px;}
-  .logo-icon{width:38px;height:38px;background:linear-gradient(135deg,var(--accent),var(--accent4));border-radius:8px;display:grid;place-items:center;font-size:20px;box-shadow:0 0 18px var(--glow);}
-  .logo h1{font-family:'Orbitron',monospace;font-size:1.1rem;letter-spacing:3px;color:var(--accent);text-shadow:0 0 20px var(--glow);}
-  .logo span{display:block;font-size:.65rem;letter-spacing:4px;color:var(--muted);font-family:'Space Mono',monospace;}
-  .header-right{display:flex;align-items:center;gap:14px;}
-  .status-pill{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-family:'Space Mono',monospace;font-size:.7rem;letter-spacing:1px;border:1px solid var(--border);background:var(--card);}
-  .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);transition:background .4s;}
-  .dot.live{background:var(--accent);box-shadow:0 0 8px var(--accent);animation:pulse 1.4s infinite;}
-  .dot.alert{background:var(--accent2);box-shadow:0 0 8px var(--accent2);animation:pulse .7s infinite;}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-  .timestamp{font-family:'Space Mono',monospace;font-size:.65rem;color:var(--muted);}
-  .grid{display:grid;grid-template-columns:340px 1fr;gap:16px;padding:16px 20px;max-width:1600px;margin:0 auto;}
-  .sidebar{display:flex;flex-direction:column;gap:12px;}
-  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;position:relative;overflow:hidden;}
-  .card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:.5;}
-  .card-title{font-family:'Space Mono',monospace;font-size:.65rem;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
-  .card-title::before{content:'';width:3px;height:12px;background:var(--accent);border-radius:2px;box-shadow:0 0 6px var(--accent);}
-  .coords-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-  .coord-box{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;}
-  .coord-label{font-size:.65rem;color:var(--muted);letter-spacing:2px;font-family:'Space Mono',monospace;margin-bottom:4px;}
-  .coord-value{font-family:'Orbitron',monospace;font-size:.95rem;color:var(--accent);text-shadow:0 0 12px var(--glow);word-break:break-all;}
-  .speed-wrap{display:flex;align-items:center;gap:16px;}
-  .speed-num{font-family:'Orbitron',monospace;font-size:3rem;color:var(--accent3);text-shadow:0 0 20px rgba(255,215,0,.4);line-height:1;}
-  .speed-unit{font-size:.75rem;color:var(--muted);letter-spacing:2px;font-family:'Space Mono',monospace;margin-top:4px;}
-  .speed-bar-wrap{flex:1;}
-  .speed-bar-bg{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:6px;}
-  .speed-bar-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent3),var(--accent2));border-radius:3px;transition:width .6s ease;}
-  .speed-max{font-family:'Space Mono',monospace;font-size:.6rem;color:var(--muted);}
-  .sat-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);}
-  .sat-row:last-child{border-bottom:none;}
-  .sat-icon{font-size:1.2rem;}
-  .sat-label{flex:1;font-size:.8rem;color:var(--muted);font-family:'Space Mono',monospace;letter-spacing:1px;}
-  .sat-val{font-family:'Orbitron',monospace;font-size:.9rem;color:var(--accent4);}
-  .last-update{font-family:'Space Mono',monospace;font-size:.6rem;color:var(--muted);text-align:right;margin-top:8px;}
-  .address-box{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:.9rem;color:var(--text);line-height:1.5;min-height:54px;}
-  .debug-box{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:'Space Mono',monospace;font-size:.62rem;color:var(--muted);line-height:1.8;word-break:break-all;}
-  .debug-box span{color:var(--accent4);}
-  .alert-banner{display:none;padding:12px 16px;border-radius:8px;border:1px solid var(--accent2);background:rgba(255,59,92,.1);color:var(--accent2);font-family:'Space Mono',monospace;font-size:.75rem;letter-spacing:1px;align-items:center;gap:10px;animation:alertFlash .6s ease infinite;}
-  .alert-banner.show{display:flex;}
-  @keyframes alertFlash{0%,100%{background:rgba(255,59,92,.1)}50%{background:rgba(255,59,92,.25)}}
-  .toggle-row{display:flex;gap:10px;}
-  .toggle-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 10px;border-radius:10px;border:1px solid var(--border);background:var(--panel);cursor:pointer;transition:all .25s;font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:1px;color:var(--muted);user-select:none;}
-  .toggle-btn .t-icon{font-size:1.6rem;}
-  .toggle-btn.on{border-color:var(--accent);background:rgba(0,245,196,.08);color:var(--accent);box-shadow:0 0 16px var(--glow);}
-  .toggle-btn.on .t-state{color:var(--accent);}
-  .action-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-  .action-btn{padding:14px 10px;border-radius:10px;border:1px solid;cursor:pointer;font-family:'Rajdhani',sans-serif;font-weight:600;font-size:1rem;letter-spacing:1px;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;background:transparent;}
-  .action-btn:active{transform:scale(.97);}
-  .action-btn:disabled{opacity:.5;cursor:not-allowed;}
-  .btn-call{border-color:var(--accent);color:var(--accent);background:rgba(0,245,196,.07);}
-  .btn-sms{border-color:var(--accent4);color:var(--accent4);background:rgba(79,195,247,.07);}
-  .btn-find{border-color:var(--accent3);color:var(--accent3);background:rgba(255,215,0,.07);grid-column:span 2;padding:18px;font-size:1.1rem;}
-  .btn-find.buzzing{animation:buzzAnim .15s linear infinite;background:rgba(255,215,0,.18);}
-  @keyframes buzzAnim{0%{transform:translateX(0)}25%{transform:translateX(-2px)}75%{transform:translateX(2px)}100%{transform:translateX(0)}}
-  .map-wrap{border-radius:12px;overflow:hidden;border:1px solid var(--border);position:relative;min-height:520px;}
-  #map{width:100%;height:100%;min-height:520px;}
-  .map-overlay{position:absolute;bottom:14px;left:14px;background:rgba(13,20,34,.85);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-family:'Space Mono',monospace;font-size:.65rem;color:var(--muted);letter-spacing:1px;z-index:1000;}
-  .map-overlay span{color:var(--accent);}
-  .log-panel{grid-column:span 2;}
-  .log-inner{height:130px;overflow-y:auto;font-family:'Space Mono',monospace;font-size:.68rem;line-height:1.8;color:var(--muted);scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
-  .log-entry{padding:2px 0;border-bottom:1px solid rgba(26,37,64,.5);}
-  .log-entry.info{color:var(--accent4);}
-  .log-entry.warn{color:var(--accent3);}
-  .log-entry.alert{color:var(--accent2);}
-  .log-entry.ok{color:var(--accent);}
-  @media(max-width:900px){.grid{grid-template-columns:1fr;}.map-wrap{min-height:350px;}#map{min-height:350px;}.log-panel{grid-column:span 1;}}
-  .leaflet-container{background:#080c14;}
-  .leaflet-popup-content-wrapper{background:var(--panel)!important;color:var(--text)!important;border:1px solid var(--border)!important;border-radius:10px!important;font-family:'Space Mono',monospace!important;font-size:.75rem!important;}
-  .leaflet-popup-tip{background:var(--panel)!important;}
-</style>
+    <title>Advanced GPS Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #eceff1; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        #map { height: 350px; border-radius: 10px; margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { padding: 15px; border: 1px solid #ddd; border-radius: 10px; text-align: center; }
+        .btn { width: 100%; padding: 12px; margin-top: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-find { background: #ff9800; color: white; }
+        .toggle-container { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+        h2 { color: #2c3e50; margin-top: 0; }
+        #address { color: #7f8c8d; font-size: 0.9em; }
+    </style>
 </head>
 <body>
-
-<header>
-  <div class="logo">
-    <div class="logo-icon">📡</div>
-    <div><h1>GEOTRACK</h1><span>LIVE LOCATION SYSTEM</span></div>
-  </div>
-  <div class="header-right">
-    <div class="status-pill">
-      <div class="dot" id="statusDot"></div>
-      <span id="statusText">CONNECTING</span>
-    </div>
-    <div class="timestamp" id="clockEl"></div>
-  </div>
-</header>
-
-<div class="grid">
-  <div class="sidebar">
-
-    <div class="alert-banner" id="alertBanner">
-      ⚠  <span>SHOCK / VIBRATION DETECTED</span>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Coordinates</div>
-      <div class="coords-grid">
-        <div class="coord-box">
-          <div class="coord-label">LATITUDE</div>
-          <div class="coord-value" id="latEl">--</div>
+    <div class="container">
+        <h2>Live Tracker Dashboard</h2>
+        <div id="map"></div>
+        
+        <div class="grid">
+            <div class="card">
+                <h3>Speed</h3>
+                <h1 id="speed">0.0</h1> km/h
+            </div>
+            <div class="card">
+                <h3>Current Address</h3>
+                <p id="address">Fetching address...</p>
+            </div>
         </div>
-        <div class="coord-box">
-          <div class="coord-label">LONGITUDE</div>
-          <div class="coord-value" id="lngEl">--</div>
+
+        <div class="card" style="margin-top:20px;">
+            <h3>Alert & Control Settings</h3>
+            <div class="toggle-container">
+                <span>SMS Alerts (MPU)</span>
+                <input type="checkbox" id="smsToggle" onclick="toggleFeature('5', this)">
+            </div>
+            <div class="toggle-container">
+                <span>Call Alerts (MPU)</span>
+                <input type="checkbox" id="callToggle" onclick="toggleFeature('6', this)">
+            </div>
+            <button class="btn btn-find" onclick="triggerBuzzer()">FIND DEVICE (5s Buzzer)</button>
         </div>
-      </div>
     </div>
 
-    <div class="card">
-      <div class="card-title">Speed</div>
-      <div class="speed-wrap">
-        <div>
-          <div class="speed-num" id="speedEl">0</div>
-          <div class="speed-unit">KM/H</div>
-        </div>
-        <div class="speed-bar-wrap">
-          <div class="speed-bar-bg"><div class="speed-bar-fill" id="speedBar"></div></div>
-          <div class="speed-max">MAX: <span id="maxSpeedEl">0</span> km/h</div>
-        </div>
-      </div>
-    </div>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        var map = L.map('map').setView([0, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        var marker = L.marker([0, 0]).addTo(map);
 
-    <div class="card">
-      <div class="card-title">Location Address</div>
-      <div class="address-box" id="addressEl">Waiting for GPS fix…</div>
-    </div>
+        async function updateDashboard() {
+            const res = await fetch('https://api.thingspeak.com/channels/3272807/feeds.json?api_key=SAVKWFOOGHDSZ4CG&results=1');
+            const data = await res.json();
+            const last = data.feeds[0];
+            
+            const lat = parseFloat(last.field1);
+            const lng = parseFloat(last.field2);
+            document.getElementById('speed').innerText = last.field3;
+            
+            marker.setLatLng([lat, lng]);
+            map.setView([lat, lng], 16);
 
-    <div class="card">
-      <div class="card-title">GPS Signal</div>
-      <div class="sat-row">
-        <span class="sat-icon">🛰️</span>
-        <span class="sat-label">SATELLITES</span>
-        <span class="sat-val" id="satEl">--</span>
-      </div>
-      <div class="sat-row">
-        <span class="sat-icon">📶</span>
-        <span class="sat-label">GPS STATUS</span>
-        <span class="sat-val" id="gpsStatusEl" style="color:var(--muted)">NO FIX</span>
-      </div>
-      <div class="last-update">Last sync: <span id="lastUpdateEl">--</span></div>
-    </div>
+            // Get Full Address
+            const addrRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+            const addrData = await addrRes.json();
+            document.getElementById('address').innerText = addrData.display_name || "Address not found";
+        }
 
-    <div class="card">
-      <div class="card-title">API Debug</div>
-      <div class="debug-box" id="debugEl">Waiting for first fetch…</div>
-    </div>
+        function toggleFeature(field, element) {
+            const val = element.checked ? "1" : "0";
+            fetch(`https://api.thingspeak.com/update?api_key=C6NTK8JIB7MD43EC&field${field}=${val}`);
+        }
 
-    <div class="card">
-      <div class="card-title">Alert Triggers (MPU Sensor)</div>
-      <div class="toggle-row">
-        <div class="toggle-btn" id="smsToggle" onclick="toggleAlert('sms')">
-          <span class="t-icon">💬</span>
-          <span>SMS ALERT</span>
-          <span class="t-state" id="smsState">OFF</span>
-        </div>
-        <div class="toggle-btn" id="callToggle" onclick="toggleAlert('call')">
-          <span class="t-icon">📞</span>
-          <span>CALL ALERT</span>
-          <span class="t-state" id="callState">OFF</span>
-        </div>
-      </div>
-    </div>
+        function triggerBuzzer() {
+            fetch(`https://api.thingspeak.com/update?api_key=C6NTK8JIB7MD43EC&field7=1`)
+            .then(() => {
+                alert("Find Command Sent!");
+                setTimeout(() => fetch(`https://api.thingspeak.com/update?api_key=C6NTK8JIB7MD43EC&field7=0`), 6000);
+            });
+        }
 
-    <div class="card">
-      <div class="card-title">Manual Actions</div>
-      <div class="action-grid">
-        <button class="action-btn btn-call" id="btnCall" onclick="triggerCall()">📞 CALL NOW</button>
-        <button class="action-btn btn-sms"  id="btnSMS"  onclick="triggerSMS()">💬 SMS NOW</button>
-        <button class="action-btn btn-find" id="findBtn" onclick="triggerFind()">
-          🔔  FIND DEVICE — ACTIVATE BUZZER
-        </button>
-      </div>
-    </div>
-
-  </div>
-
-  <div class="map-wrap">
-    <div id="map"></div>
-    <div class="map-overlay">TRACKING  <span id="mapCoordLabel">--°N  --°E</span></div>
-  </div>
-
-  <div class="card log-panel">
-    <div class="card-title">System Log</div>
-    <div class="log-inner" id="logEl"></div>
-  </div>
-</div>
-
-<script>
-// ══════════════════════════════════════════════
-//  CONFIG
-// ══════════════════════════════════════════════
-var TS_CHANNEL   = '3272807';
-var TS_READ_KEY  = 'SAVKWFOOGHDSZ4CG';
-var TS_WRITE_KEY = 'C6NTK8JIB7MD43EC';
-var REFRESH_MS   = 15000;
-
-// ══════════════════════════════════════════════
-//  STATE
-// ══════════════════════════════════════════════
-var map, marker, accuracyCircle;
-var smsOn    = false;   // Starts OFF by default as requested
-var callOn   = false;   // Starts OFF by default as requested
-var maxSpeed = 0;
-var lastEntryId   = null;
-var buzzerTimer   = null;
-var actionLocked  = false; 
-var toggleLocked  = false; 
-
-// ══════════════════════════════════════════════
-//  MAP INITIALIZATION
-// ══════════════════════════════════════════════
-function initMap() {
-  map = L.map('map', { zoomControl: true }).setView([20.5937, 78.9629], 5);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '© OpenStreetMap © CARTO',
-    subdomains: 'abcd', maxZoom: 19
-  }).addTo(map);
-
-  var icon = L.divIcon({
-    html: '<div style="width:18px;height:18px;background:radial-gradient(circle,#00f5c4 30%,rgba(0,245,196,0) 100%);border:2px solid #00f5c4;border-radius:50%;box-shadow:0 0 16px #00f5c4;animation:mp 1.4s infinite;"></div><style>@keyframes mp{0%,100%{box-shadow:0 0 8px #00f5c4}50%{box-shadow:0 0 24px #00f5c4}}</style>',
-    className: '', iconSize: [18,18], iconAnchor: [9,9]
-  });
-
-  marker = L.marker([20.5937, 78.9629], { icon }).addTo(map);
-  accuracyCircle = L.circle([20.5937, 78.9629], {
-    radius:50, color:'#00f5c4', fillColor:'#00f5c4', fillOpacity:0.08, weight:1
-  }).addTo(map);
-
-  addLog('Map initialised', 'ok');
-}
-
-// ══════════════════════════════════════════════
-//  CLOCK & LOGS
-// ══════════════════════════════════════════════
-function updateClock() {
-  document.getElementById('clockEl').textContent = new Date().toLocaleTimeString('en-IN', { hour12: false });
-}
-setInterval(updateClock, 1000);
-updateClock();
-
-function addLog(msg, type) {
-  type = type || 'info';
-  var el  = document.getElementById('logEl');
-  var t   = new Date().toLocaleTimeString('en-IN', { hour12: false });
-  var div = document.createElement('div');
-  div.className   = 'log-entry ' + type;
-  div.textContent = '[' + t + ']  ' + msg;
-  el.prepend(div);
-  if (el.children.length > 120) el.removeChild(el.lastChild);
-}
-
-// ══════════════════════════════════════════════
-//  FETCH DATA FROM THINGSPEAK
-// ══════════════════════════════════════════════
-function fetchData() {
-  var url = 'https://api.thingspeak.com/channels/' + TS_CHANNEL + '/feeds/last.json?api_key=' + TS_READ_KEY;
-  var xhr = new XMLHttpRequest();
-  xhr.open('GET', url, true);
-  xhr.timeout = 10000;
-
-  xhr.onload = function() {
-    if (xhr.status === 200) {
-      try {
-        var data = JSON.parse(xhr.responseText);
-        document.getElementById('debugEl').innerHTML =
-          '<span>HTTP:</span> 200 OK  ' +
-          '<span>entry:</span> '   + (data.entry_id   || '?') + '<br>' +
-          '<span>f1 lat:</span> '  + (data.field1     || 'null') + ' ' +
-          '<span>f2 lng:</span> '  + (data.field2     || 'null') + '<br>' +
-          '<span>f3 spd:</span> '  + (data.field3     || 'null') + ' ' +
-          '<span>f4:</span> '      + (data.field4     || 'null') + '<br>' +
-          '<span>f5 sms:</span> '  + (data.field5     || 'null') + ' ' +
-          '<span>f6 call:</span> ' + (data.field6     || 'null') + '<br>' +
-          '<span>f7 buzz:</span> ' + (data.field7     || 'null') + ' ' +
-          '<span>f8 sat:</span> '  + (data.field8     || 'null');
-
-        processData(data);
-      } catch(e) {
-        setStatus(false);
-        addLog('Parse error: ' + e.message, 'alert');
-      }
-    } else {
-      setStatus(false);
-      addLog('HTTP error: ' + xhr.status, 'alert');
-    }
-  };
-
-  xhr.onerror   = function() { setStatus(false); addLog('Network error', 'alert'); };
-  xhr.ontimeout = function() { setStatus(false); addLog('Timeout', 'warn'); };
-  xhr.send();
-}
-
-// ══════════════════════════════════════════════
-//  PROCESS DATA
-// ══════════════════════════════════════════════
-function processData(data) {
-  if (!data || !data.entry_id) {
-    setStatus(false);
-    return;
-  }
-
-  var lat   = parseFloat(data.field1);
-  var lng   = parseFloat(data.field2);
-  var speed = parseFloat(data.field3) || 0;
-  var alert = parseInt(data.field4)   || 0;
-  var sats  = parseInt(data.field8)   || 0;
-  var gpsOk = !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
-
-  setStatus(gpsOk);
-
-  document.getElementById('latEl').textContent = gpsOk ? lat.toFixed(6) : '--';
-  document.getElementById('lngEl').textContent = gpsOk ? lng.toFixed(6) : '--';
-
-  var spd = isNaN(speed) ? 0 : speed;
-  document.getElementById('speedEl').textContent = spd.toFixed(1);
-  document.getElementById('speedBar').style.width = Math.min(spd/200*100,100) + '%';
-  if (spd > maxSpeed) {
-    maxSpeed = spd;
-    document.getElementById('maxSpeedEl').textContent = maxSpeed.toFixed(1);
-  }
-
-  document.getElementById('satEl').textContent = sats;
-  document.getElementById('gpsStatusEl').textContent = gpsOk ? 'FIX OK' : 'NO FIX';
-  document.getElementById('gpsStatusEl').style.color  = gpsOk ? 'var(--accent)' : 'var(--muted)';
-
-  if (data.created_at) {
-    try {
-      document.getElementById('lastUpdateEl').textContent = new Date(data.created_at).toLocaleTimeString('en-IN',{hour12:false});
-    } catch(e){}
-  }
-
-  if (gpsOk) {
-    var ll = [lat, lng];
-    marker.setLatLng(ll);
-    accuracyCircle.setLatLng(ll);
-    marker.bindPopup('<b>📍 Device</b><br>Lat: '+lat.toFixed(6)+'<br>Lng: '+lng.toFixed(6)+'<br>Speed: '+spd.toFixed(1)+' km/h<br>Sats: '+sats);
-    map.panTo(ll);
-    document.getElementById('mapCoordLabel').textContent = lat.toFixed(4)+'°N  '+lng.toFixed(4)+'°E';
-    reverseGeocode(lat, lng);
-  }
-
-  if (alert === 1 && data.entry_id !== lastEntryId) {
-    lastEntryId = data.entry_id;
-    showAlert();
-    addLog('⚠ SHOCK ALERT entry=' + data.entry_id, 'alert');
-  } else if (alert !== 1) {
-    hideAlert();
-  }
-
-  // Only sync toggles from TS if user hasn't clicked them manually
-  if (!toggleLocked) {
-    var smsF  = (data.field5 !== null && data.field5 !== undefined) ? parseInt(data.field5) : -1;
-    var callF = (data.field6 !== null && data.field6 !== undefined) ? parseInt(data.field6) : -1;
-    if (smsF  === 1) applyToggle('sms',  true);
-    if (smsF  === 0) applyToggle('sms',  false);
-    if (callF === 1) applyToggle('call', true);
-    if (callF === 0) applyToggle('call', false);
-  }
-}
-
-// ══════════════════════════════════════════════
-//  REVERSE GEOCODE
-// ══════════════════════════════════════════════
-var lastGeoLat = null, lastGeoLng = null;
-function reverseGeocode(lat, lng) {
-  if (lastGeoLat !== null && Math.abs(lat - lastGeoLat) < 0.001 && Math.abs(lng - lastGeoLng) < 0.001) return;
-  lastGeoLat = lat; lastGeoLng = lng;
-
-  var xhr = new XMLHttpRequest();
-  xhr.open('GET','https://nominatim.openstreetmap.org/reverse?format=json&lat='+lat+'&lon='+lng+'&zoom=16',true);
-  xhr.setRequestHeader('Accept-Language','en');
-  xhr.timeout = 8000;
-  xhr.onload = function() {
-    if (xhr.status === 200) {
-      try {
-        var j = JSON.parse(xhr.responseText);
-        document.getElementById('addressEl').textContent = j.display_name || 'Not found';
-      } catch(e) {}
-    }
-  };
-  xhr.send();
-}
-
-function setStatus(online) {
-  document.getElementById('statusDot').className    = online ? 'dot live' : 'dot';
-  document.getElementById('statusText').textContent = online ? 'LIVE' : 'OFFLINE';
-}
-
-function showAlert() {
-  document.getElementById('alertBanner').classList.add('show');
-  document.getElementById('statusDot').className = 'dot alert';
-  setTimeout(hideAlert, 30000);
-}
-
-function hideAlert() {
-  document.getElementById('alertBanner').classList.remove('show');
-}
-
-// ══════════════════════════════════════════════
-//  TOGGLES
-// ══════════════════════════════════════════════
-function toggleAlert(type) {
-  toggleLocked = true; 
-
-  if (type === 'sms') {
-    smsOn = !smsOn;
-    applyToggle('sms', smsOn);
-    writeField(5, smsOn ? 1 : 0, null);
-    addLog('SMS alert ' + (smsOn ? 'ENABLED' : 'DISABLED') + ' — written to ThingSpeak', smsOn ? 'ok' : 'warn');
-  } else {
-    callOn = !callOn;
-    applyToggle('call', callOn);
-    writeField(6, callOn ? 1 : 0, null);
-    addLog('Call alert ' + (callOn ? 'ENABLED' : 'DISABLED') + ' — written to ThingSpeak', callOn ? 'ok' : 'warn');
-  }
-}
-
-function applyToggle(type, val) {
-  if (type === 'sms') {
-    smsOn = val;
-    document.getElementById('smsToggle').className  = 'toggle-btn' + (val ? ' on' : '');
-    document.getElementById('smsState').textContent  = val ? 'ON' : 'OFF';
-  } else {
-    callOn = val;
-    document.getElementById('callToggle').className  = 'toggle-btn' + (val ? ' on' : '');
-    document.getElementById('callState').textContent  = val ? 'ON' : 'OFF';
-  }
-}
-
-// ══════════════════════════════════════════════
-//  WRITE FIELD TO THINGSPEAK
-// ══════════════════════════════════════════════
-function writeField(fieldNum, value, cb) {
-  var url = 'https://api.thingspeak.com/update?api_key=' + TS_WRITE_KEY + '&field' + fieldNum + '=' + value;
-  var xhr = new XMLHttpRequest();
-  xhr.open('GET', url, true);
-  xhr.timeout = 8000;
-  xhr.onload = function() {
-    var entry = xhr.responseText.trim();
-    addLog('✓ field' + fieldNum + '=' + value + ' written (entry ' + entry + ')', 'ok');
-    if (cb) cb(entry);
-  };
-  xhr.onerror = function() {
-    addLog('✗ Write field' + fieldNum + ' FAILED', 'warn');
-    if (cb) cb(null);
-  };
-  xhr.send();
-}
-
-// ══════════════════════════════════════════════
-//  FIND DEVICE BUZZER (FIXED)
-// ══════════════════════════════════════════════
-function triggerFind() {
-  if (actionLocked) return;
-  actionLocked = true;
-
-  var btn = document.getElementById('findBtn');
-  btn.disabled = true;
-  btn.classList.add('buzzing');
-
-  addLog('BUZZER command → writing field7=1', 'warn');
-
-  writeField(7, 1, function(entry) {
-    if (entry && entry !== '0') {
-      addLog('✓ Buzzer command sent! Device beeps within 12s', 'ok');
-    } else {
-      addLog('✗ Write may have failed — check ThingSpeak', 'warn');
-    }
-  });
-
-  if (buzzerTimer) clearTimeout(buzzerTimer);
-  buzzerTimer = setTimeout(function() {
-    btn.classList.remove('buzzing');
-    btn.disabled    = false;
-    actionLocked    = false;
-  }, 12000);
-}
-
-// ══════════════════════════════════════════════
-//  MANUAL CALL & SMS
-// ══════════════════════════════════════════════
-function triggerCall() {
-  if (actionLocked) return;
-  actionLocked = true;
-
-  var btn = document.getElementById('btnCall');
-  btn.disabled = true;
-  btn.textContent = '📞 SENDING...';
-
-  addLog('Manual CALL → writing field4=2', 'alert');
-
-  writeField(4, 2, function(entry) {
-    if (entry && entry !== '0') {
-      addLog('✓ Call command sent! Device will dial within 12s', 'ok');
-    } else {
-      addLog('✗ Call command may have failed', 'warn');
-    }
-    setTimeout(function() {
-      btn.disabled    = false;
-      btn.textContent = '📞 CALL NOW';
-      actionLocked    = false;
-    }, 12000);
-  });
-}
-
-function triggerSMS() {
-  if (actionLocked) return;
-  actionLocked = true;
-
-  var btn = document.getElementById('btnSMS');
-  btn.disabled = true;
-  btn.textContent = '💬 SENDING...';
-
-  addLog('Manual SMS → writing field4=3', 'alert');
-
-  writeField(4, 3, function(entry) {
-    if (entry && entry !== '0') {
-      addLog('✓ SMS command sent! Device will send SMS within 12s', 'ok');
-    } else {
-      addLog('✗ SMS command may have failed', 'warn');
-    }
-    setTimeout(function() {
-      btn.disabled    = false;
-      btn.textContent = '💬 SMS NOW';
-      actionLocked    = false;
-    }, 12000);
-  });
-}
-
-// ══════════════════════════════════════════════
-//  INIT
-// ══════════════════════════════════════════════
-initMap();
-// Explicitly apply OFF visual state on boot
-applyToggle('sms',  false);
-applyToggle('call', false);
-// Lock the toggles so ThingSpeak history doesn't overwrite the OFF default
-toggleLocked = true; 
-
-fetchData();
-setInterval(fetchData, REFRESH_MS);
-addLog('Dashboard started — polling every ' + (REFRESH_MS/1000) + 's', 'info');
-addLog('SMS: OFF | Call: OFF — click toggles to enable', 'warn');
-</script>
+        setInterval(updateDashboard, 15000);
+        updateDashboard();
+    </script>
 </body>
 </html>
