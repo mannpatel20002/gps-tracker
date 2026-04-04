@@ -1,49 +1,437 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Buzzer Control</title>
-  <style>
-    body {
-      background: #111;
-      color: white;
-      text-align: center;
-      font-family: Arial;
-      margin-top: 80px;
-    }
-    button {
-      padding: 20px 40px;
-      font-size: 20px;
-      margin: 20px;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-    }
-    .on { background: green; }
-    .off { background: red; }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GPS Live Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root {
+  --bg:     #080c14;
+  --panel:  #0d1422;
+  --border: #1a2540;
+  --accent: #00f5c4;
+  --a2:     #ff3b5c;
+  --a3:     #ffd700;
+  --a4:     #4fc3f7;
+  --text:   #e0eaff;
+  --muted:  #5a6a8a;
+  --card:   #111926;
+  --glow:   rgba(0,245,196,0.18);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;overflow-x:hidden;}
+
+/* scanline */
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.04) 3px,rgba(0,0,0,.04) 4px);pointer-events:none;z-index:9999;}
+
+/* HEADER */
+header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 24px;
+  background:var(--panel);
+  border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:100;
+}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--accent),var(--a4));border-radius:8px;display:grid;place-items:center;font-size:18px;box-shadow:0 0 16px var(--glow);}
+.logo h1{font-family:'Orbitron',monospace;font-size:1rem;letter-spacing:3px;color:var(--accent);text-shadow:0 0 18px var(--glow);}
+.logo p{font-size:.6rem;letter-spacing:4px;color:var(--muted);font-family:'Space Mono',monospace;}
+.hdr-right{display:flex;align-items:center;gap:12px;}
+.pill{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-family:'Space Mono',monospace;font-size:.65rem;letter-spacing:1px;border:1px solid var(--border);background:var(--card);}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);}
+.dot.live{background:var(--accent);box-shadow:0 0 8px var(--accent);animation:blink 1.4s infinite;}
+.dot.alert{background:var(--a2);box-shadow:0 0 8px var(--a2);animation:blink .6s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.clock{font-family:'Space Mono',monospace;font-size:.65rem;color:var(--muted);}
+
+/* LAYOUT */
+.wrap{display:grid;grid-template-columns:320px 1fr;gap:14px;padding:14px 18px;max-width:1500px;margin:0 auto;}
+
+/* CARD */
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;position:relative;overflow:hidden;}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:.5;}
+.card-title{font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.card-title::before{content:'';width:3px;height:11px;background:var(--accent);border-radius:2px;box-shadow:0 0 6px var(--accent);}
+
+/* SIDEBAR */
+.sidebar{display:flex;flex-direction:column;gap:12px;}
+
+/* ALERT BANNER */
+.alert-banner{display:none;padding:10px 14px;border-radius:8px;border:1px solid var(--a2);background:rgba(255,59,92,.12);color:var(--a2);font-family:'Space Mono',monospace;font-size:.7rem;align-items:center;gap:8px;animation:ablk .5s infinite;}
+.alert-banner.show{display:flex;}
+@keyframes ablk{0%,100%{background:rgba(255,59,92,.12)}50%{background:rgba(255,59,92,.28)}}
+
+/* COORDS */
+.coords-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.coord-box{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px;}
+.coord-lbl{font-size:.6rem;color:var(--muted);letter-spacing:2px;font-family:'Space Mono',monospace;margin-bottom:3px;}
+.coord-val{font-family:'Orbitron',monospace;font-size:.9rem;color:var(--accent);text-shadow:0 0 10px var(--glow);word-break:break-all;}
+
+/* SPEED */
+.speed-big{font-family:'Orbitron',monospace;font-size:3.2rem;color:var(--a3);text-shadow:0 0 24px rgba(255,215,0,.45);line-height:1;display:inline-block;}
+.speed-unit{font-size:.7rem;color:var(--muted);letter-spacing:2px;font-family:'Space Mono',monospace;margin-top:3px;}
+.speed-row{display:flex;align-items:center;gap:14px;}
+.speed-side{flex:1;}
+.bar-bg{height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:5px;}
+.bar-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--a3),var(--a2));border-radius:3px;transition:width .5s ease;}
+.speed-meta{font-family:'Space Mono',monospace;font-size:.58rem;color:var(--muted);}
+
+/* SIGNAL */
+.sig-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);}
+.sig-row:last-child{border-bottom:none;}
+.sig-icon{font-size:1.1rem;}
+.sig-lbl{flex:1;font-size:.75rem;color:var(--muted);font-family:'Space Mono',monospace;letter-spacing:1px;}
+.sig-val{font-family:'Orbitron',monospace;font-size:.85rem;color:var(--a4);}
+.last-sync{font-family:'Space Mono',monospace;font-size:.58rem;color:var(--muted);text-align:right;margin-top:6px;}
+
+/* ADDRESS */
+.addr-box{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:.88rem;color:var(--text);line-height:1.5;min-height:50px;}
+
+/* DEBUG */
+.dbg{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-family:'Space Mono',monospace;font-size:.58rem;color:var(--muted);line-height:1.8;word-break:break-all;}
+.dbg b{color:var(--a4);}
+
+/* MAP */
+.map-wrap{border-radius:12px;overflow:hidden;border:1px solid var(--border);position:relative;min-height:560px;}
+#map{width:100%;height:100%;min-height:560px;}
+.map-pill{position:absolute;bottom:12px;left:12px;background:rgba(8,12,20,.88);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-family:'Space Mono',monospace;font-size:.6rem;color:var(--muted);z-index:1000;}
+.map-pill span{color:var(--accent);}
+
+/* LOG */
+.log-wrap{grid-column:span 2;}
+.log-inner{height:110px;overflow-y:auto;font-family:'Space Mono',monospace;font-size:.65rem;line-height:1.8;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+.le{padding:1px 0;border-bottom:1px solid rgba(26,37,64,.4);}
+.le.ok{color:var(--accent);}
+.le.warn{color:var(--a3);}
+.le.err{color:var(--a2);}
+.le.info{color:var(--a4);}
+
+/* RESPONSIVE */
+@media(max-width:860px){
+  .wrap{grid-template-columns:1fr;}
+  .map-wrap{min-height:320px;}
+  #map{min-height:320px;}
+  .log-wrap{grid-column:span 1;}
+}
+
+/* LEAFLET */
+.leaflet-container{background:#080c14;}
+.leaflet-popup-content-wrapper{background:var(--panel)!important;color:var(--text)!important;border:1px solid var(--border)!important;border-radius:10px!important;font-family:'Space Mono',monospace!important;font-size:.72rem!important;}
+.leaflet-popup-tip{background:var(--panel)!important;}
+</style>
 </head>
 <body>
 
-<h2>🔔 BUZZER CONTROL</h2>
+<header>
+  <div class="logo">
+    <div class="logo-icon">📡</div>
+    <div>
+      <h1>GEOTRACK</h1>
+      <p>LIVE LOCATION SYSTEM</p>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <div class="pill">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusTxt">CONNECTING</span>
+    </div>
+    <div class="clock" id="clockEl"></div>
+  </div>
+</header>
 
-<button class="on" onclick="setBuzzer(1)">TURN ON</button>
-<button class="off" onclick="setBuzzer(0)">TURN OFF</button>
+<div class="wrap">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <!-- Alert banner -->
+    <div class="alert-banner" id="alertBanner">⚠ &nbsp;SHOCK / IMPACT DETECTED</div>
+
+    <!-- Coordinates -->
+    <div class="card">
+      <div class="card-title">Coordinates</div>
+      <div class="coords-grid">
+        <div class="coord-box">
+          <div class="coord-lbl">LATITUDE</div>
+          <div class="coord-val" id="latEl">--</div>
+        </div>
+        <div class="coord-box">
+          <div class="coord-lbl">LONGITUDE</div>
+          <div class="coord-val" id="lngEl">--</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Speed -->
+    <div class="card">
+      <div class="card-title">Speed</div>
+      <div class="speed-row">
+        <div>
+          <div class="speed-big" id="speedEl">0.0</div>
+          <div class="speed-unit">KM / H</div>
+        </div>
+        <div class="speed-side">
+          <div class="bar-bg"><div class="bar-fill" id="speedBar"></div></div>
+          <div class="speed-meta">MAX SESSION: <span id="maxSpd">0.0</span> km/h</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Address -->
+    <div class="card">
+      <div class="card-title">Location Address</div>
+      <div class="addr-box" id="addrEl">Waiting for GPS fix…</div>
+    </div>
+
+    <!-- GPS Signal -->
+    <div class="card">
+      <div class="card-title">GPS Signal</div>
+      <div class="sig-row">
+        <span class="sig-icon">🛰️</span>
+        <span class="sig-lbl">SATELLITES</span>
+        <span class="sig-val" id="satEl">--</span>
+      </div>
+      <div class="sig-row">
+        <span class="sig-icon">📶</span>
+        <span class="sig-lbl">FIX STATUS</span>
+        <span class="sig-val" id="fixEl" style="color:var(--muted)">NO FIX</span>
+      </div>
+      <div class="last-sync">Updated: <span id="syncEl">--</span></div>
+    </div>
+
+    <!-- Debug -->
+    <div class="card">
+      <div class="card-title">API Debug</div>
+      <div class="dbg" id="dbgEl">Waiting…</div>
+    </div>
+
+  </div>
+
+  <!-- MAP -->
+  <div class="map-wrap">
+    <div id="map"></div>
+    <div class="map-pill">LIVE &nbsp;<span id="mapLbl">--°N  --°E</span></div>
+  </div>
+
+  <!-- LOG -->
+  <div class="card log-wrap">
+    <div class="card-title">System Log</div>
+    <div class="log-inner" id="logEl"></div>
+  </div>
+
+</div><!-- /wrap -->
 
 <script>
-const API_KEY = "C6NTK8JIB7MD43EC";
+// ── CONFIG ───────────────────────────────────────────────
+var CH  = '3272807';
+var RK  = 'SAVKWFOOGHDSZ4CG';
+var REF = 15000; // refresh every 15s
 
-function setBuzzer(val) {
-  const url = "https://api.thingspeak.com/update?api_key=" + API_KEY + "&field1=" + val;
+// ── STATE ────────────────────────────────────────────────
+var map, marker, circle;
+var maxSpd     = 0;
+var lastEntry  = null;
+var geoLat     = null;
+var geoLng     = null;
 
-  fetch(url)
-    .then(res => res.text())
-    .then(data => {
-      alert("Sent: " + val + " | Entry ID: " + data);
-      console.log("Response:", data);
-    })
-    .catch(err => alert("Error: " + err));
+// ── MAP ──────────────────────────────────────────────────
+function initMap() {
+  map = L.map('map').setView([20.59, 78.96], 5);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+    attribution:'© OpenStreetMap © CARTO',
+    subdomains:'abcd', maxZoom:19
+  }).addTo(map);
+
+  var icon = L.divIcon({
+    html:'<div style="width:16px;height:16px;background:radial-gradient(circle,#00f5c4 30%,transparent 100%);border:2px solid #00f5c4;border-radius:50%;box-shadow:0 0 14px #00f5c4;animation:gp 1.4s infinite;"></div><style>@keyframes gp{0%,100%{box-shadow:0 0 8px #00f5c4}50%{box-shadow:0 0 22px #00f5c4}}</style>',
+    className:'', iconSize:[16,16], iconAnchor:[8,8]
+  });
+
+  marker = L.marker([20.59,78.96],{icon}).addTo(map);
+  circle = L.circle([20.59,78.96],{radius:40,color:'#00f5c4',fillColor:'#00f5c4',fillOpacity:.07,weight:1}).addTo(map);
+  log('Map ready','ok');
 }
-</script>
 
+// ── CLOCK ────────────────────────────────────────────────
+setInterval(function(){
+  document.getElementById('clockEl').textContent =
+    new Date().toLocaleTimeString('en-IN',{hour12:false});
+},1000);
+
+// ── LOG ──────────────────────────────────────────────────
+function log(msg, type) {
+  var el  = document.getElementById('logEl');
+  var t   = new Date().toLocaleTimeString('en-IN',{hour12:false});
+  var d   = document.createElement('div');
+  d.className   = 'le ' + (type||'info');
+  d.textContent = '['+t+']  '+msg;
+  el.prepend(d);
+  if (el.children.length > 100) el.removeChild(el.lastChild);
+}
+
+// ── FETCH ────────────────────────────────────────────────
+function fetch_data() {
+  var url = 'https://api.thingspeak.com/channels/'+CH+'/feeds/last.json?api_key='+RK;
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.timeout = 10000;
+
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      try {
+        var d = JSON.parse(xhr.responseText);
+
+        // Show raw in debug
+        document.getElementById('dbgEl').innerHTML =
+          '<b>entry:</b> '+(d.entry_id||'?')+'&nbsp;&nbsp;'+
+          '<b>time:</b> '+(d.created_at||'?')+'<br>'+
+          '<b>f1 lat:</b> '+(d.field1||'null')+'&nbsp;'+
+          '<b>f2 lng:</b> '+(d.field2||'null')+'<br>'+
+          '<b>f3 spd:</b> '+(d.field3||'null')+'&nbsp;'+
+          '<b>f4 alrt:</b> '+(d.field4||'null')+'&nbsp;'+
+          '<b>f5 sat:</b> '+(d.field5||'null');
+
+        process(d);
+      } catch(e) {
+        setStatus(false);
+        log('Parse error: '+e.message,'err');
+      }
+    } else {
+      setStatus(false);
+      log('HTTP '+xhr.status,'err');
+    }
+  };
+
+  xhr.onerror   = function(){ setStatus(false); log('Network error','err'); };
+  xhr.ontimeout = function(){ setStatus(false); log('Timeout','warn'); };
+  xhr.send();
+}
+
+// ── PROCESS ──────────────────────────────────────────────
+function process(d) {
+  if (!d || !d.entry_id) {
+    setStatus(false);
+    log('No data — check channel is PUBLIC','warn');
+    return;
+  }
+
+  var lat   = parseFloat(d.field1);
+  var lng   = parseFloat(d.field2);
+  var spd   = parseFloat(d.field3) || 0;
+  var alrt  = parseInt(d.field4)   || 0;
+  var sats  = parseInt(d.field5)   || 0;
+  var ok    = !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
+
+  setStatus(ok);
+
+  // Coords
+  document.getElementById('latEl').textContent = ok ? lat.toFixed(6) : '--';
+  document.getElementById('lngEl').textContent = ok ? lng.toFixed(6) : '--';
+
+  // Speed
+  var s = isNaN(spd) ? 0 : spd;
+  document.getElementById('speedEl').textContent = s.toFixed(1);
+  document.getElementById('speedBar').style.width = Math.min(s/200*100,100)+'%';
+  if (s > maxSpd) {
+    maxSpd = s;
+    document.getElementById('maxSpd').textContent = maxSpd.toFixed(1);
+  }
+
+  // Satellites
+  document.getElementById('satEl').textContent = sats;
+  document.getElementById('fixEl').textContent = ok ? 'FIX OK' : 'NO FIX';
+  document.getElementById('fixEl').style.color  = ok ? 'var(--accent)' : 'var(--muted)';
+
+  // Timestamp
+  if (d.created_at) {
+    try {
+      document.getElementById('syncEl').textContent =
+        new Date(d.created_at).toLocaleTimeString('en-IN',{hour12:false});
+    } catch(e){}
+  }
+
+  // Map
+  if (ok) {
+    var ll = [lat, lng];
+    marker.setLatLng(ll);
+    circle.setLatLng(ll);
+    marker.bindPopup(
+      '<b>📍 Device</b><br>'+
+      'Lat: '+lat.toFixed(6)+'<br>'+
+      'Lng: '+lng.toFixed(6)+'<br>'+
+      'Speed: '+s.toFixed(1)+' km/h<br>'+
+      'Sats: '+sats
+    );
+    map.panTo(ll);
+    document.getElementById('mapLbl').textContent =
+      lat.toFixed(4)+'°N  '+lng.toFixed(4)+'°E';
+    geocode(lat, lng);
+    log('GPS '+lat.toFixed(5)+', '+lng.toFixed(5)+
+        ' | '+s.toFixed(1)+' km/h | sats='+sats,'ok');
+  } else {
+    log('No GPS fix yet — f1='+d.field1+' f2='+d.field2,'warn');
+  }
+
+  // Alert
+  if (alrt === 1 && d.entry_id !== lastEntry) {
+    lastEntry = d.entry_id;
+    showAlert();
+    log('⚠ SHOCK ALERT entry='+d.entry_id,'err');
+  } else if (alrt !== 1) {
+    hideAlert();
+  }
+}
+
+// ── GEOCODE ──────────────────────────────────────────────
+function geocode(lat, lng) {
+  if (geoLat !== null &&
+      Math.abs(lat-geoLat) < 0.001 &&
+      Math.abs(lng-geoLng) < 0.001) return;
+  geoLat = lat; geoLng = lng;
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET',
+    'https://nominatim.openstreetmap.org/reverse?format=json&lat='+lat+'&lon='+lng+'&zoom=16',
+    true);
+  xhr.setRequestHeader('Accept-Language','en');
+  xhr.timeout = 8000;
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      try {
+        var j = JSON.parse(xhr.responseText);
+        document.getElementById('addrEl').textContent = j.display_name || 'Not found';
+      } catch(e){}
+    }
+  };
+  xhr.send();
+}
+
+// ── STATUS ───────────────────────────────────────────────
+function setStatus(on) {
+  document.getElementById('statusDot').className = on ? 'dot live' : 'dot';
+  document.getElementById('statusTxt').textContent = on ? 'LIVE' : 'OFFLINE';
+}
+
+// ── ALERT ────────────────────────────────────────────────
+function showAlert() {
+  document.getElementById('alertBanner').classList.add('show');
+  document.getElementById('statusDot').className = 'dot alert';
+  setTimeout(hideAlert, 30000);
+}
+function hideAlert() {
+  document.getElementById('alertBanner').classList.remove('show');
+}
+
+// ── START ────────────────────────────────────────────────
+initMap();
+fetch_data();
+setInterval(fetch_data, REF);
+log('Dashboard started — refresh every '+(REF/1000)+'s','info');
+</script>
 </body>
 </html>
