@@ -1,60 +1,43 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Buzzer Test</title>
-    <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f0f2f5; }
-        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; }
-        .btn { padding: 20px 40px; font-size: 24px; font-weight: bold; color: white; border: none; border-radius: 8px; cursor: pointer; transition: 0.3s; width: 100%; }
-        .btn-off { background-color: #e74c3c; } /* Red for OFF */
-        .btn-on { background-color: #2ecc71; } /* Green for ON */
-        #statusText { margin-top: 20px; font-size: 18px; color: #555; }
-    </style>
+  <title>Buzzer Control</title>
+  <style>
+    body {
+      font-family: Arial;
+      text-align: center;
+      margin-top: 60px;
+      background: #111;
+      color: white;
+    }
+    button {
+      padding: 20px 40px;
+      font-size: 20px;
+      margin: 15px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    .on { background: #00c853; color: white; }
+    .off { background: #d50000; color: white; }
+  </style>
 </head>
 <body>
 
-    <div class="card">
-        <h1>Buzzer Control</h1>
-        <button id="toggleBtn" class="btn btn-off" onclick="toggleBuzzer()">TURN BUZZER ON</button>
-        <p id="statusText">Current Command: OFF</p>
-    </div>
+<h2>🔔 ESP32 BUZZER CONTROL</h2>
 
-    <script>
-        // Start assuming it is OFF
-        let isBuzzerOn = false; 
-        const writeAPI = "C6NTK8JIB7MD43EC";
+<button class="on" onclick="setBuzzer(1)">TURN ON</button>
+<button class="off" onclick="setBuzzer(0)">TURN OFF</button>
 
-        function toggleBuzzer() {
-            // Flip the state
-            isBuzzerOn = !isBuzzerOn; 
-            const val = isBuzzerOn ? "1" : "0";
-            const btn = document.getElementById("toggleBtn");
-            const status = document.getElementById("statusText");
+<script>
+const API_KEY = "C6NTK8JIB7MD43EC";
 
-            // Update UI immediately
-            if (isBuzzerOn) {
-                btn.innerText = "TURN BUZZER OFF";
-                btn.className = "btn btn-on";
-                status.innerText = "Sending command: ON...";
-            } else {
-                btn.innerText = "TURN BUZZER ON";
-                btn.className = "btn btn-off";
-                status.innerText = "Sending command: OFF...";
-            }
+function setBuzzer(val) {
+  fetch(`https://api.thingspeak.com/update?api_key=${API_KEY}&field1=${val}`)
+    .then(() => alert("Command Sent: " + val))
+    .catch(() => alert("Error sending command"));
+}
+</script>
 
-            // Send command to ThingSpeak Field 7
-            fetch(`https://api.thingspeak.com/update?api_key=${writeAPI}&field7=${val}`)
-            .then(response => {
-                if(response.ok) {
-                    status.innerText = `Current Command: ${isBuzzerOn ? "ON" : "OFF"} (Success)`;
-                } else {
-                    status.innerText = "Error sending command!";
-                }
-            })
-            .catch(err => {
-                status.innerText = "Network error!";
-            });
-        }
-    </script>
 </body>
 </html>
