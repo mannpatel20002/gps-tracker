@@ -11,6 +11,7 @@
         .card { padding: 15px; border: 1px solid #ddd; border-radius: 10px; text-align: center; }
         .btn { width: 100%; padding: 12px; margin-top: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
         .btn-find { background: #ff9800; color: white; }
+        .btn-find:active { background: #e68a00; }
         .toggle-container { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
         h2 { color: #2c3e50; margin-top: 0; }
         #address { color: #7f8c8d; font-size: 0.9em; }
@@ -36,11 +37,11 @@
             <h3>Alert & Control Settings</h3>
             <div class="toggle-container">
                 <span>SMS Alerts (MPU)</span>
-                <input type="checkbox" id="smsToggle" onclick="toggleFeature('5', this)">
+                <input type="checkbox" id="smsToggle" onclick="toggleFeature(5, this)">
             </div>
             <div class="toggle-container">
                 <span>Call Alerts (MPU)</span>
-                <input type="checkbox" id="callToggle" onclick="toggleFeature('6', this)">
+                <input type="checkbox" id="callToggle" onclick="toggleFeature(6, this)">
             </div>
             <button class="btn btn-find" onclick="triggerBuzzer()">FIND DEVICE (5s Buzzer)</button>
         </div>
@@ -57,17 +58,26 @@
             const data = await res.json();
             const last = data.feeds[0];
             
-            const lat = parseFloat(last.field1);
-            const lng = parseFloat(last.field2);
-            document.getElementById('speed').innerText = last.field3;
-            
-            marker.setLatLng([lat, lng]);
-            map.setView([lat, lng], 16);
+            if (last.field1 && last.field2) {
+                const lat = parseFloat(last.field1);
+                const lng = parseFloat(last.field2);
+                document.getElementById('speed').innerText = last.field3 || "0.0";
+                
+                marker.setLatLng([lat, lng]);
+                map.setView([lat, lng], 16);
 
-            // Get Full Address
-            const addrRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
-            const addrData = await addrRes.json();
-            document.getElementById('address').innerText = addrData.display_name || "Address not found";
+                // Fetch Full Address
+                fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+                    .then(r => r.json())
+                    .then(addr => document.getElementById('address').innerText = addr.display_name || "Address not found");
+            }
+
+            // Sync Web Switches with Real Data
+            if (last.field5 === "1") document.getElementById('smsToggle').checked = true;
+            if (last.field5 === "0") document.getElementById('smsToggle').checked = false;
+            
+            if (last.field6 === "1") document.getElementById('callToggle').checked = true;
+            if (last.field6 === "0") document.getElementById('callToggle').checked = false;
         }
 
         function toggleFeature(field, element) {
@@ -77,10 +87,7 @@
 
         function triggerBuzzer() {
             fetch(`https://api.thingspeak.com/update?api_key=C6NTK8JIB7MD43EC&field7=1`)
-            .then(() => {
-                alert("Find Command Sent!");
-                setTimeout(() => fetch(`https://api.thingspeak.com/update?api_key=C6NTK8JIB7MD43EC&field7=0`), 6000);
-            });
+            .then(() => alert("Find Command Sent to ESP32!"));
         }
 
         setInterval(updateDashboard, 15000);
