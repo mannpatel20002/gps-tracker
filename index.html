@@ -4,27 +4,27 @@
   <title>Buzzer Control</title>
   <style>
     body {
-      font-family: Arial;
-      text-align: center;
-      margin-top: 60px;
       background: #111;
       color: white;
+      text-align: center;
+      font-family: Arial;
+      margin-top: 80px;
     }
     button {
       padding: 20px 40px;
       font-size: 20px;
-      margin: 15px;
+      margin: 20px;
       border: none;
       border-radius: 10px;
       cursor: pointer;
     }
-    .on { background: #00c853; color: white; }
-    .off { background: #d50000; color: white; }
+    .on { background: green; }
+    .off { background: red; }
   </style>
 </head>
 <body>
 
-<h2>🔔 ESP32 BUZZER CONTROL</h2>
+<h2>🔔 BUZZER CONTROL</h2>
 
 <button class="on" onclick="setBuzzer(1)">TURN ON</button>
 <button class="off" onclick="setBuzzer(0)">TURN OFF</button>
@@ -33,9 +33,15 @@
 const API_KEY = "C6NTK8JIB7MD43EC";
 
 function setBuzzer(val) {
-  fetch(`https://api.thingspeak.com/update?api_key=${API_KEY}&field1=${val}`)
-    .then(() => alert("Command Sent: " + val))
-    .catch(() => alert("Error sending command"));
+  const url = "https://api.thingspeak.com/update?api_key=" + API_KEY + "&field1=" + val;
+
+  fetch(url)
+    .then(res => res.text())
+    .then(data => {
+      alert("Sent: " + val + " | Entry ID: " + data);
+      console.log("Response:", data);
+    })
+    .catch(err => alert("Error: " + err));
 }
 </script>
 
