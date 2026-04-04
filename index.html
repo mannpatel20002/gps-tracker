@@ -1,97 +1,60 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Advanced GPS Tracker</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <title>Buzzer Test</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #eceff1; margin: 0; padding: 20px; }
-        .container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        #map { height: 350px; border-radius: 10px; margin-bottom: 20px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .card { padding: 15px; border: 1px solid #ddd; border-radius: 10px; text-align: center; }
-        .btn { width: 100%; padding: 12px; margin-top: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
-        .btn-find { background: #ff9800; color: white; }
-        .btn-find:active { background: #e68a00; }
-        .toggle-container { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
-        h2 { color: #2c3e50; margin-top: 0; }
-        #address { color: #7f8c8d; font-size: 0.9em; }
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f0f2f5; }
+        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; }
+        .btn { padding: 20px 40px; font-size: 24px; font-weight: bold; color: white; border: none; border-radius: 8px; cursor: pointer; transition: 0.3s; width: 100%; }
+        .btn-off { background-color: #e74c3c; } /* Red for OFF */
+        .btn-on { background-color: #2ecc71; } /* Green for ON */
+        #statusText { margin-top: 20px; font-size: 18px; color: #555; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>Live Tracker Dashboard</h2>
-        <div id="map"></div>
-        
-        <div class="grid">
-            <div class="card">
-                <h3>Speed</h3>
-                <h1 id="speed">0.0</h1> km/h
-            </div>
-            <div class="card">
-                <h3>Current Address</h3>
-                <p id="address">Fetching address...</p>
-            </div>
-        </div>
 
-        <div class="card" style="margin-top:20px;">
-            <h3>Alert & Control Settings</h3>
-            <div class="toggle-container">
-                <span>SMS Alerts (MPU)</span>
-                <input type="checkbox" id="smsToggle" onclick="toggleFeature(5, this)">
-            </div>
-            <div class="toggle-container">
-                <span>Call Alerts (MPU)</span>
-                <input type="checkbox" id="callToggle" onclick="toggleFeature(6, this)">
-            </div>
-            <button class="btn btn-find" onclick="triggerBuzzer()">FIND DEVICE (5s Buzzer)</button>
-        </div>
+    <div class="card">
+        <h1>Buzzer Control</h1>
+        <button id="toggleBtn" class="btn btn-off" onclick="toggleBuzzer()">TURN BUZZER ON</button>
+        <p id="statusText">Current Command: OFF</p>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
-        var map = L.map('map').setView([0, 0], 2);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        var marker = L.marker([0, 0]).addTo(map);
+        // Start assuming it is OFF
+        let isBuzzerOn = false; 
+        const writeAPI = "C6NTK8JIB7MD43EC";
 
-        async function updateDashboard() {
-            const res = await fetch('https://api.thingspeak.com/channels/3272807/feeds.json?api_key=SAVKWFOOGHDSZ4CG&results=1');
-            const data = await res.json();
-            const last = data.feeds[0];
-            
-            if (last.field1 && last.field2) {
-                const lat = parseFloat(last.field1);
-                const lng = parseFloat(last.field2);
-                document.getElementById('speed').innerText = last.field3 || "0.0";
-                
-                marker.setLatLng([lat, lng]);
-                map.setView([lat, lng], 16);
+        function toggleBuzzer() {
+            // Flip the state
+            isBuzzerOn = !isBuzzerOn; 
+            const val = isBuzzerOn ? "1" : "0";
+            const btn = document.getElementById("toggleBtn");
+            const status = document.getElementById("statusText");
 
-                // Fetch Full Address
-                fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
-                    .then(r => r.json())
-                    .then(addr => document.getElementById('address').innerText = addr.display_name || "Address not found");
+            // Update UI immediately
+            if (isBuzzerOn) {
+                btn.innerText = "TURN BUZZER OFF";
+                btn.className = "btn btn-on";
+                status.innerText = "Sending command: ON...";
+            } else {
+                btn.innerText = "TURN BUZZER ON";
+                btn.className = "btn btn-off";
+                status.innerText = "Sending command: OFF...";
             }
 
-            // Sync Web Switches with Real Data
-            if (last.field5 === "1") document.getElementById('smsToggle').checked = true;
-            if (last.field5 === "0") document.getElementById('smsToggle').checked = false;
-            
-            if (last.field6 === "1") document.getElementById('callToggle').checked = true;
-            if (last.field6 === "0") document.getElementById('callToggle').checked = false;
+            // Send command to ThingSpeak Field 7
+            fetch(`https://api.thingspeak.com/update?api_key=${writeAPI}&field7=${val}`)
+            .then(response => {
+                if(response.ok) {
+                    status.innerText = `Current Command: ${isBuzzerOn ? "ON" : "OFF"} (Success)`;
+                } else {
+                    status.innerText = "Error sending command!";
+                }
+            })
+            .catch(err => {
+                status.innerText = "Network error!";
+            });
         }
-
-        function toggleFeature(field, element) {
-            const val = element.checked ? "1" : "0";
-            fetch(`https://api.thingspeak.com/update?api_key=C6NTK8JIB7MD43EC&field${field}=${val}`);
-        }
-
-        function triggerBuzzer() {
-            fetch(`https://api.thingspeak.com/update?api_key=C6NTK8JIB7MD43EC&field7=1`)
-            .then(() => alert("Find Command Sent to ESP32!"));
-        }
-
-        setInterval(updateDashboard, 15000);
-        updateDashboard();
     </script>
 </body>
 </html>
