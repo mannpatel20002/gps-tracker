@@ -1,121 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GPS Live Tracker</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono&family=Orbitron&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <style>
 :root {
-  --bg:     #f4f7fb;
-  --panel:  #ffffff;
-  --border: #d6e0ef;
-  --accent: #007bff;
-  --a2:     #ff3b3b;
-  --a3:     #ff9800;
-  --a4:     #17a2b8;
-  --text:   #1c2b3a;
-  --muted:  #6c7a92;
-  --card:   #ffffff;
+  --bg:#f4f7fb;
+  --panel:#ffffff;
+  --border:#d6e0ef;
+  --accent:#007bff;
+  --a2:#ff3b3b;
+  --a3:#ff9800;
+  --text:#1c2b3a;
+  --muted:#6c7a92;
 }
 
 *{box-sizing:border-box;margin:0;padding:0;}
-body{
-  background:var(--bg);
-  color:var(--text);
-  font-family:'Rajdhani',sans-serif;
-}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;}
 
-/* HEADER */
 header{
-  display:flex;
-  justify-content:space-between;
-  padding:12px 20px;
-  background:#fff;
+  display:flex;justify-content:space-between;
+  padding:12px 20px;background:#fff;
   border-bottom:1px solid var(--border);
 }
-.logo h1{color:var(--accent);font-size:1rem;}
-.logo p{color:var(--muted);font-size:.6rem;}
-.logo-icon{
-  background:var(--accent);
-  color:#fff;
-  border-radius:6px;
-}
+.logo{display:flex;gap:10px;align-items:center;}
+.logo-icon{background:var(--accent);color:#fff;padding:6px;border-radius:6px;}
+.logo h1{font-size:1rem;color:var(--accent);}
+.logo p{font-size:.6rem;color:var(--muted);}
 
-/* LAYOUT */
 .wrap{
   display:grid;
   grid-template-columns:300px 1fr;
-  gap:12px;
-  padding:12px;
+  gap:12px;padding:12px;
 }
 
-/* CARD */
 .card{
   background:#fff;
   border:1px solid var(--border);
   border-radius:10px;
   padding:14px;
 }
-.card-title{
-  font-size:.7rem;
-  color:var(--muted);
-  margin-bottom:10px;
-}
+.card-title{font-size:.7rem;color:var(--muted);margin-bottom:10px;}
 
-/* COORDS */
 .coord-box{
   background:#f9fbff;
   border:1px solid var(--border);
+  padding:10px;border-radius:6px;
 }
-.coord-val{
-  color:var(--accent);
-  font-size:.95rem;
-}
+.coord-val{color:var(--accent);}
 
-/* SPEED */
-.speed-big{
-  color:var(--a3);
-  font-size:2.5rem;
-}
-.bar-bg{
-  background:#e0e6f1;
-}
-.bar-fill{
-  background:var(--a3);
-}
+.speed-big{font-size:2.5rem;color:var(--a3);}
+.bar-bg{height:5px;background:#e0e6f1;border-radius:3px;}
+.bar-fill{height:100%;background:var(--a3);}
 
-/* SIGNAL */
-.sig-row{
-  border-bottom:1px solid #eef2f8;
-}
-
-/* MAP */
 .map-wrap{
   border-radius:10px;
   overflow:hidden;
   border:1px solid var(--border);
 }
-#map{
-  min-height:520px;
-}
-.map-pill{
-  background:#fff;
-  border:1px solid var(--border);
-  color:var(--text);
-}
+#map{height:520px;}
 
-/* ALERT */
 .alert-banner{
+  display:none;
   background:#ffe5e5;
   color:#d60000;
+  padding:8px;border-radius:6px;
   border:1px solid #ffb3b3;
 }
+.alert-banner.show{display:block;}
 
-/* LOG */
-.log-inner{
-  background:#fff;
-}
-.le.ok{color:green;}
-.le.warn{color:orange;}
-.le.err{color:red;}
-.le.info{color:#007bff;}
+.log-inner{height:100px;overflow:auto;font-size:.7rem;}
 
-/* RESPONSIVE */
 @media(max-width:860px){
   .wrap{grid-template-columns:1fr;}
 }
 </style>
+</head>
+
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">📡</div>
+    <div>
+      <h1>GEOTRACK</h1>
+      <p>LIVE LOCATION SYSTEM</p>
+    </div>
+  </div>
+  <div id="clockEl"></div>
+</header>
+
+<div class="wrap">
+
+<div>
+
+<div class="alert-banner" id="alertBanner">⚠ Shock Detected</div>
+
+<div class="card">
+<div class="card-title">Coordinates</div>
+<div class="coord-box">Lat: <span id="latEl">--</span></div>
+<div class="coord-box">Lng: <span id="lngEl">--</span></div>
+</div>
+
+<div class="card">
+<div class="card-title">Speed</div>
+<div class="speed-big" id="speedEl">0</div>
+<div class="bar-bg"><div class="bar-fill" id="speedBar"></div></div>
+</div>
+
+<div class="card">
+<div class="card-title">Address</div>
+<div id="addrEl">Waiting...</div>
+</div>
+
+<div class="card">
+<div class="card-title">GPS</div>
+<div>Sats: <span id="satEl">--</span></div>
+<div>Status: <span id="fixEl">NO FIX</span></div>
+</div>
+
+</div>
+
+<div class="map-wrap">
+<div id="map"></div>
+</div>
+
+<div class="card">
+<div class="card-title">Logs</div>
+<div class="log-inner" id="logEl"></div>
+</div>
+
+</div>
+
+<script>
+// CONFIG
+var CH='3272807';
+var RK='SAVKWFOOGHDSZ4CG';
+var REF=15000;
+
+var map,marker,maxSpd=0;
+
+// MAP
+function initMap(){
+map=L.map('map').setView([20.59,78.96],5);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+var icon=L.icon({
+iconUrl:'https://cdn-icons-png.flaticon.com/512/684/684908.png',
+iconSize:[28,28]
+});
+
+marker=L.marker([20.59,78.96],{icon}).addTo(map);
+}
+
+// CLOCK
+setInterval(()=>{
+document.getElementById('clockEl').textContent=
+new Date().toLocaleTimeString();
+},1000);
+
+// LOG
+function log(msg){
+var el=document.getElementById('logEl');
+var d=document.createElement('div');
+d.textContent=msg;
+el.prepend(d);
+}
+
+// FETCH
+function fetch_data(){
+var url='https://api.thingspeak.com/channels/'+CH+'/feeds/last.json?api_key='+RK;
+
+fetch(url)
+.then(r=>r.json())
+.then(d=>process(d))
+.catch(()=>log('Error'));
+}
+
+// PROCESS
+function process(d){
+var lat=parseFloat(d.field1);
+var lng=parseFloat(d.field2);
+var spd=parseFloat(d.field3)||0;
+var alrt=parseInt(d.field4)||0;
+var sats=parseInt(d.field5)||0;
+
+var ok=!isNaN(lat)&&!isNaN(lng);
+
+document.getElementById('latEl').textContent=ok?lat:'--';
+document.getElementById('lngEl').textContent=ok?lng:'--';
+
+document.getElementById('speedEl').textContent=spd;
+document.getElementById('speedBar').style.width=(spd/200*100)+'%';
+
+document.getElementById('satEl').textContent=sats;
+document.getElementById('fixEl').textContent=ok?'FIX OK':'NO FIX';
+
+if(ok){
+marker.setLatLng([lat,lng]);
+map.setView([lat,lng],15);
+geocode(lat,lng);
+}
+
+if(alrt==1){
+document.getElementById('alertBanner').classList.add('show');
+}else{
+document.getElementById('alertBanner').classList.remove('show');
+}
+}
+
+// GEOCODE
+function geocode(lat,lng){
+fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+.then(r=>r.json())
+.then(j=>{
+document.getElementById('addrEl').textContent=j.display_name;
+});
+}
+
+// START
+initMap();
+fetch_data();
+setInterval(fetch_data,REF);
+</script>
+
+</body>
+</html>
