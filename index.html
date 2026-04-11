@@ -32,6 +32,7 @@ header{
 .logo{display:flex;gap:10px;align-items:center;}
 .logo-icon{background:var(--accent);color:#fff;padding:6px 10px;border-radius:6px;}
 .logo h1{font-family:'Orbitron';font-size:1rem;color:var(--accent);}
+
 .status{
   font-size:.8rem;font-weight:600;
   padding:4px 10px;border-radius:20px;
@@ -53,9 +54,9 @@ header{
   border:1px solid var(--border);
   border-radius:10px;
   padding:14px;
+  margin-bottom:10px;
 }
 .title{font-size:.75rem;color:var(--muted);margin-bottom:8px;}
-
 .value{font-size:1rem;font-weight:600;color:var(--accent);}
 
 /* SPEED */
@@ -63,6 +64,20 @@ header{
   font-size:2.3rem;
   color:#ff9800;
 }
+
+/* BUTTONS */
+.btn{
+  width:100%;
+  padding:10px;
+  margin-top:6px;
+  border:none;
+  border-radius:8px;
+  font-weight:600;
+  cursor:pointer;
+}
+.start{background:var(--green);color:#fff;}
+.stop{background:var(--red);color:#fff;}
+.clear{background:#444;color:#fff;}
 
 /* MAP */
 .map-wrap{
@@ -72,14 +87,12 @@ header{
 }
 #map{height:520px;}
 
-/* FOOT INFO */
 .footer{
   margin-top:8px;
   font-size:.7rem;
   color:var(--muted);
 }
 
-/* MOBILE */
 @media(max-width:860px){
   .wrap{grid-template-columns:1fr;}
 }
@@ -91,7 +104,7 @@ header{
 <header>
   <div class="logo">
     <div class="logo-icon">📍</div>
-    <h1>GEOTRACK</h1>
+    <h1>GEOTRACK PRO</h1>
   </div>
   <div id="statusEl" class="status offline">OFFLINE</div>
 </header>
@@ -124,6 +137,14 @@ header{
 <div class="footer">Last Updated: <span id="timeEl">--</span></div>
 </div>
 
+<div class="card">
+<div class="title">Tracking Control</div>
+<button class="btn start" onclick="startTracking()">Start Tracking</button>
+<button class="btn stop" onclick="stopTracking()">Stop Tracking</button>
+<button class="btn clear" onclick="clearPath()">Clear Path</button>
+<div class="footer">Distance: <span id="distEl">0</span> km</div>
+</div>
+
 </div>
 
 <!-- MAP -->
@@ -139,7 +160,10 @@ var CH='3272807';
 var RK='SAVKWFOOGHDSZ4CG';
 var REF=15000;
 
-var map,marker;
+var map,marker,polyline;
+var tracking=false;
+var path=[];
+var totalDistance=0;
 
 // INIT MAP
 function initMap(){
@@ -148,15 +172,12 @@ function initMap(){
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-  var icon=L.icon({
-    iconUrl:'https://cdn-icons-png.flaticon.com/512/684/684908.png',
-    iconSize:[28,28]
-  });
+  marker=L.marker([20.59,78.96]).addTo(map);
 
-  marker=L.marker([20.59,78.96],{icon}).addTo(map);
+  polyline=L.polyline([], {color:'blue'}).addTo(map);
 }
 
-// FETCH DATA
+// FETCH
 function fetch_data(){
 fetch(`https://api.thingspeak.com/channels/${CH}/feeds/last.json?api_key=${RK}`)
 .then(r=>r.json())
@@ -173,35 +194,69 @@ var sats=parseInt(d.field5)||0;
 
 var ok=!isNaN(lat)&&!isNaN(lng)&&lat!==0&&lng!==0;
 
-// STATUS
-if(ok){
-  setOnline();
-}else{
-  setOffline();
-}
+if(ok){ setOnline(); } else { setOffline(); }
 
-// DATA UI
 document.getElementById('latEl').textContent=ok?lat.toFixed(5):'--';
 document.getElementById('lngEl').textContent=ok?lng.toFixed(5):'--';
 document.getElementById('speedEl').textContent=spd.toFixed(1);
 document.getElementById('satEl').textContent=sats;
 document.getElementById('fixEl').textContent=ok?'FIX OK':'NO FIX';
 
-// TIME
 if(d.created_at){
-  var t=new Date(d.created_at).toLocaleTimeString();
-  document.getElementById('timeEl').textContent=t;
+  document.getElementById('timeEl').textContent=new Date(d.created_at).toLocaleTimeString();
 }
 
-// MAP
 if(ok){
 marker.setLatLng([lat,lng]);
-map.setView([lat,lng],15);
+
+// FIX: no zoom reset
+if(!map._loadedOnce){
+  map.setView([lat,lng],15);
+  map._loadedOnce=true;
+}
+
+// TRACKING
+if(tracking){
+  let last=path[path.length-1];
+  if(last){
+    totalDistance += getDistance(last[0],last[1],lat,lng);
+  }
+  path.push([lat,lng]);
+  polyline.setLatLngs(path);
+  document.getElementById('distEl').textContent=totalDistance.toFixed(3);
+}
+
 geocode(lat,lng);
 }
 }
 
-// STATUS FUNCTIONS
+// DISTANCE CALC (Haversine)
+function getDistance(lat1,lon1,lat2,lon2){
+var R=6371;
+var dLat=(lat2-lat1)*Math.PI/180;
+var dLon=(lon2-lon1)*Math.PI/180;
+var a=Math.sin(dLat/2)*Math.sin(dLat/2)+
+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*
+Math.sin(dLon/2)*Math.sin(dLon/2);
+var c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+return R*c;
+}
+
+// TRACK BUTTONS
+function startTracking(){
+tracking=true;
+}
+function stopTracking(){
+tracking=false;
+}
+function clearPath(){
+path=[];
+polyline.setLatLngs([]);
+totalDistance=0;
+document.getElementById('distEl').textContent=0;
+}
+
+// STATUS
 function setOnline(){
 let el=document.getElementById('statusEl');
 el.textContent='ONLINE';
